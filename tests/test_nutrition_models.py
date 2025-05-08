@@ -8,6 +8,16 @@ import os
 # Add the parent directory to the path so we can import our app modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Mock firebase_admin before importing modules that use it
+import firebase_admin
+firebase_admin.initialize_app = MagicMock()
+firebase_admin.get_app = MagicMock()
+firebase_admin.delete_app = MagicMock()
+firebase_admin.firestore = MagicMock()
+firebase_admin.storage = MagicMock()
+firebase_admin.auth = MagicMock()
+
+# Now import our app modules
 from nutrition.models import NutritionModel, FoodItem, MealLog
 
 
