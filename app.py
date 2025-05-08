@@ -20,7 +20,7 @@ from flask_cors import CORS
 # Import blueprints
 from auth.routes import auth_bp
 from recipes.routes import recipes_bp
-# from nutrition.routes import nutrition_bp
+from nutrition.routes import nutrition_bp
 # from social.routes import social_bp
 
 def create_app():
@@ -31,7 +31,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(recipes_bp, url_prefix='/api/recipes')
-    # app.register_blueprint(nutrition_bp, url_prefix='/api/nutrition')
+    app.register_blueprint(nutrition_bp, url_prefix='/api/nutrition')
     # app.register_blueprint(social_bp, url_prefix='/api/social')
 
     @app.route('/health', methods=['GET'])
