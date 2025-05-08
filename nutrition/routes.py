@@ -2,434 +2,630 @@ from flask import Blueprint, jsonify, request
 from utils.firebase_admin import auth_required
 import firebase_admin
 from firebase_admin import firestore
-from datetime import datetime, timedelta
+from datetime import datetime
+import uuid
+import requests
 from nutrition.models import FoodItem, MealLog
+from config import Config
 
 # Create blueprint
 nutrition_bp = Blueprint('nutrition', __name__)
-db = firebase_admin.firestore.client()
 
-# Food Items Routes
-@nutrition_bp.route('/food-items', methods=['POST'])
+# Initialize Firebase and models
+db = firebase_admin.firestore.client()
+food_item_model = FoodItem(db)
+meal_log_model = MealLog(db)
+
+
+@nutrition_bp.route('/foods', methods=['POST'])
 @auth_required
 def create_food_item(user_id):
-    """Create a new food item in the database"""
+    """Create a new food item"""
     try:
         data = request.get_json()
-        food_item_service = FoodItem(db)
-        result = food_item_service.create(user_id, data)
-        return jsonify(result), 201
+        food_item = food_item_model.create(user_id, data)
+        return jsonify(food_item), 201
+    
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f"Failed to create food item: {str(e)}"}), 500
 
-@nutrition_bp.route('/food-items/<item_id>', methods=['GET'])
-@auth_required
-def get_food_item(user_id, item_id):
-    """Get a specific food item by ID"""
-    try:
-        food_item_service = FoodItem(db)
-        result = food_item_service.get(item_id, user_id)
-        return jsonify(result)
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 404
-    except Exception as e:
-        return jsonify({'error': f"Failed to retrieve food item: {str(e)}"}), 500
 
-@nutrition_bp.route('/food-items', methods=['GET'])
+@nutrition_bp.route('/foods', methods=['GET'])
 @auth_required
-def list_food_items(user_id):
+def get_food_items(user_id):
     """List food items with filtering and pagination"""
     try:
-        # Get query parameters
+        # Extract query parameters
         query_params = {
-            'limit': request.args.get('limit', 20, type=int),
-            'offset': request.args.get('offset', 0, type=int),
-            'q': request.args.get('q', ''),
+            'limit': request.args.get('limit', 20),
+            'offset': request.args.get('offset', 0),
             'is_favorite': request.args.get('is_favorite') == 'true',
             'is_custom': request.args.get('is_custom') == 'true',
+            'q': request.args.get('q', ''),
             'sort_by': request.args.get('sort_by', 'created_at'),
             'sort_dir': request.args.get('sort_dir', 'desc')
         }
         
-        food_item_service = FoodItem(db)
-        result = food_item_service.list(user_id, query_params)
+        # Get food items using model
+        result = food_item_model.list(user_id, query_params)
         return jsonify(result)
+        
     except Exception as e:
-        return jsonify({'error': f"Failed to list food items: {str(e)}"}), 500
+        return jsonify({'error': f"Failed to get food items: {str(e)}"}), 500
 
-@nutrition_bp.route('/food-items/<item_id>', methods=['PUT'])
+
+@nutrition_bp.route('/foods/<food_id>', methods=['GET'])
 @auth_required
-def update_food_item(user_id, item_id):
+def get_food_item(user_id, food_id):
+    """Get a specific food item by ID"""
+    try:
+        food_item = food_item_model.get(food_id, user_id)
+        return jsonify(food_item)
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': f"Failed to get food item: {str(e)}"}), 500
+
+
+@nutrition_bp.route('/foods/<food_id>', methods=['PUT'])
+@auth_required
+def update_food_item(user_id, food_id):
     """Update a food item"""
     try:
         data = request.get_json()
-        food_item_service = FoodItem(db)
-        result = food_item_service.update(item_id, user_id, data)
-        return jsonify(result)
+        updated_item = food_item_model.update(food_id, user_id, data)
+        return jsonify(updated_item)
+        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f"Failed to update food item: {str(e)}"}), 500
 
-@nutrition_bp.route('/food-items/<item_id>', methods=['DELETE'])
+
+@nutrition_bp.route('/foods/<food_id>', methods=['DELETE'])
 @auth_required
-def delete_food_item(user_id, item_id):
+def delete_food_item(user_id, food_id):
     """Delete a food item"""
     try:
-        food_item_service = FoodItem(db)
-        food_item_service.delete(item_id, user_id)
+        food_item_model.delete(food_id, user_id)
         return jsonify({'message': 'Food item deleted successfully'}), 200
+        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f"Failed to delete food item: {str(e)}"}), 500
 
-@nutrition_bp.route('/food-items/<item_id>/favorite', methods=['POST'])
+
+@nutrition_bp.route('/foods/<food_id>/favorite', methods=['POST'])
 @auth_required
-def toggle_favorite(user_id, item_id):
+def toggle_favorite(user_id, food_id):
     """Toggle favorite status for a food item"""
     try:
-        data = request.get_json()
-        is_favorite = data.get('is_favorite', True)
+        # Get current item
+        food_item = food_item_model.get(food_id, user_id)
         
-        food_item_service = FoodItem(db)
-        result = food_item_service.update(item_id, user_id, {'is_favorite': is_favorite})
-        return jsonify(result)
+        # Toggle favorite status
+        is_favorite = not food_item.get('is_favorite', False)
+        
+        # Update item
+        updated_item = food_item_model.update(food_id, user_id, {'is_favorite': is_favorite})
+        
+        return jsonify({'is_favorite': is_favorite})
+        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f"Failed to update favorite status: {str(e)}"}), 500
+        return jsonify({'error': f"Failed to toggle favorite status: {str(e)}"}), 500
 
-# Meal Logging Routes
+
+@nutrition_bp.route('/foods/search', methods=['GET'])
+@auth_required
+def search_food_database(user_id):
+    """Search for food items in USDA database"""
+    try:
+        query = request.args.get('q', '')
+        if not query:
+            return jsonify({'error': 'Search query is required'}), 400
+            
+        # Make request to USDA API
+        response = requests.get(
+            f"{Config.USDA_API_BASE_URL}/foods/search",
+            params={
+                'api_key': Config.USDA_API_KEY,
+                'query': query,
+                'pageSize': 25
+            }
+        )
+        
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to search USDA database'}), 500
+            
+        results = response.json()
+        
+        # Format results
+        foods = []
+        for food in results.get('foods', []):
+            formatted_food = {
+                'fdcId': food.get('fdcId'),
+                'name': food.get('description'),
+                'brand': food.get('brandName', ''),
+                'serving_size': food.get('servingSize', 100),
+                'serving_unit': food.get('servingSizeUnit', 'g'),
+                'nutrition': {
+                    'calories': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                                    if n.get('nutrientName', '').lower() == 'energy' and n.get('unitName', '').lower() == 'kcal'), 0),
+                    'protein': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                                   if n.get('nutrientName', '').lower() == 'protein'), 0),
+                    'fat': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                               if n.get('nutrientName', '').lower() == 'total lipid (fat)'), 0),
+                    'carbs': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                                 if n.get('nutrientName', '').lower() == 'carbohydrate, by difference'), 0),
+                    'fiber': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                                 if n.get('nutrientName', '').lower() == 'fiber, total dietary'), 0),
+                    'sugar': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                                 if n.get('nutrientName', '').lower() == 'sugars, total including nlea'), 0),
+                    'sodium': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                                  if n.get('nutrientName', '').lower() == 'sodium, na'), 0),
+                    'cholesterol': next((n.get('value', 0) for n in food.get('foodNutrients', []) 
+                                       if n.get('nutrientName', '').lower() == 'cholesterol'), 0)
+                }
+            }
+            foods.append(formatted_food)
+            
+        return jsonify({
+            'foods': foods,
+            'totalHits': results.get('totalHits', 0)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f"Failed to search food database: {str(e)}"}), 500
+
+
+@nutrition_bp.route('/foods/details/<fdc_id>', methods=['GET'])
+@auth_required
+def get_food_details(user_id, fdc_id):
+    """Get detailed information about a food from USDA database"""
+    try:
+        # Make request to USDA API
+        response = requests.get(
+            f"{Config.USDA_API_BASE_URL}/food/{fdc_id}",
+            params={
+                'api_key': Config.USDA_API_KEY
+            }
+        )
+        
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to get food details from USDA database'}), 500
+            
+        food_data = response.json()
+        
+        # Format detailed food data
+        food_details = {
+            'fdcId': food_data.get('fdcId'),
+            'name': food_data.get('description'),
+            'brand': food_data.get('brandName', ''),
+            'ingredients': food_data.get('ingredients', ''),
+            'serving_size': food_data.get('servingSize', 100),
+            'serving_unit': food_data.get('servingSizeUnit', 'g'),
+            'category': food_data.get('foodCategory', {}).get('description', ''),
+            'nutrition': {},
+            'nutrients': []
+        }
+        
+        # Extract all nutrients
+        for nutrient in food_data.get('foodNutrients', []):
+            if 'nutrient' in nutrient and 'amount' in nutrient:
+                n = nutrient['nutrient']
+                nutrient_info = {
+                    'id': n.get('id'),
+                    'name': n.get('name'),
+                    'amount': nutrient.get('amount', 0),
+                    'unit': n.get('unitName'),
+                    'category': n.get('nutrientCategory', {}).get('name', '')
+                }
+                food_details['nutrients'].append(nutrient_info)
+                
+                # Add common nutrients to the nutrition object
+                if n.get('name', '').lower() == 'energy' and n.get('unitName', '').lower() == 'kcal':
+                    food_details['nutrition']['calories'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'protein':
+                    food_details['nutrition']['protein'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'total lipid (fat)':
+                    food_details['nutrition']['fat'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'carbohydrate, by difference':
+                    food_details['nutrition']['carbs'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'fiber, total dietary':
+                    food_details['nutrition']['fiber'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'sugars, total including nlea':
+                    food_details['nutrition']['sugar'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'sodium, na':
+                    food_details['nutrition']['sodium'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'cholesterol':
+                    food_details['nutrition']['cholesterol'] = nutrient.get('amount', 0)
+        
+        return jsonify(food_details)
+        
+    except Exception as e:
+        return jsonify({'error': f"Failed to get food details: {str(e)}"}), 500
+
+
+@nutrition_bp.route('/foods/import', methods=['POST'])
+@auth_required
+def import_food_from_usda(user_id):
+    """Import a food item from USDA database to user's food items"""
+    try:
+        data = request.get_json()
+        fdc_id = data.get('fdcId')
+        
+        if not fdc_id:
+            return jsonify({'error': 'FDC ID is required'}), 400
+            
+        # Get food details from USDA
+        response = requests.get(
+            f"{Config.USDA_API_BASE_URL}/food/{fdc_id}",
+            params={
+                'api_key': Config.USDA_API_KEY
+            }
+        )
+        
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to get food details from USDA database'}), 500
+            
+        food_data = response.json()
+        
+        # Prepare food item data
+        food_item_data = {
+            'name': food_data.get('description'),
+            'brand': food_data.get('brandName', ''),
+            'fdcId': food_data.get('fdcId'),
+            'serving_size': food_data.get('servingSize', 100),
+            'serving_unit': food_data.get('servingSizeUnit', 'g'),
+            'is_custom': False,
+            'nutrition': {}
+        }
+        
+        # Extract nutrition data
+        for nutrient in food_data.get('foodNutrients', []):
+            if 'nutrient' in nutrient and 'amount' in nutrient:
+                n = nutrient['nutrient']
+                if n.get('name', '').lower() == 'energy' and n.get('unitName', '').lower() == 'kcal':
+                    food_item_data['nutrition']['calories'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'protein':
+                    food_item_data['nutrition']['protein'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'total lipid (fat)':
+                    food_item_data['nutrition']['fat'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'carbohydrate, by difference':
+                    food_item_data['nutrition']['carbs'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'fiber, total dietary':
+                    food_item_data['nutrition']['fiber'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'sugars, total including nlea':
+                    food_item_data['nutrition']['sugar'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'sodium, na':
+                    food_item_data['nutrition']['sodium'] = nutrient.get('amount', 0)
+                elif n.get('name', '').lower() == 'cholesterol':
+                    food_item_data['nutrition']['cholesterol'] = nutrient.get('amount', 0)
+        
+        # Update with any user-provided data
+        if 'name' in data:
+            food_item_data['name'] = data['name']
+        if 'serving_size' in data:
+            food_item_data['serving_size'] = data['serving_size']
+        if 'serving_unit' in data:
+            food_item_data['serving_unit'] = data['serving_unit']
+        if 'is_favorite' in data:
+            food_item_data['is_favorite'] = data['is_favorite']
+        
+        # Create food item
+        food_item = food_item_model.create(user_id, food_item_data)
+        return jsonify(food_item), 201
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f"Failed to import food item: {str(e)}"}), 500
+
+
 @nutrition_bp.route('/meals', methods=['POST'])
 @auth_required
 def create_meal(user_id):
-    """Log a new meal"""
+    """Create a new meal log"""
     try:
         data = request.get_json()
-        meal_service = MealLog(db)
-        result = meal_service.create(user_id, data)
-        return jsonify(result), 201
+        meal = meal_log_model.create(user_id, data)
+        return jsonify(meal), 201
+        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f"Failed to log meal: {str(e)}"}), 500
+        return jsonify({'error': f"Failed to create meal: {str(e)}"}), 500
 
-@nutrition_bp.route('/meals/<meal_id>', methods=['GET'])
-@auth_required
-def get_meal(user_id, meal_id):
-    """Get a specific meal log by ID"""
-    try:
-        meal_service = MealLog(db)
-        result = meal_service.get(meal_id, user_id)
-        return jsonify(result)
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 404
-    except Exception as e:
-        return jsonify({'error': f"Failed to retrieve meal: {str(e)}"}), 500
 
 @nutrition_bp.route('/meals', methods=['GET'])
 @auth_required
-def list_meals(user_id):
-    """List meal logs with filtering and pagination"""
+def get_meals(user_id):
+    """List meals with filtering and pagination"""
     try:
-        # Get query parameters
+        # Extract query parameters
         query_params = {
-            'limit': request.args.get('limit', 20, type=int),
-            'offset': request.args.get('offset', 0, type=int),
+            'limit': request.args.get('limit', 20),
+            'offset': request.args.get('offset', 0),
             'date': request.args.get('date'),
             'meal_type': request.args.get('meal_type'),
             'sort_by': request.args.get('sort_by', 'meal_time'),
             'sort_dir': request.args.get('sort_dir', 'desc')
         }
         
-        meal_service = MealLog(db)
-        result = meal_service.list(user_id, query_params)
+        # Get meals using model
+        result = meal_log_model.list(user_id, query_params)
         return jsonify(result)
+        
     except Exception as e:
-        return jsonify({'error': f"Failed to list meals: {str(e)}"}), 500
+        return jsonify({'error': f"Failed to get meals: {str(e)}"}), 500
+
+
+@nutrition_bp.route('/meals/<meal_id>', methods=['GET'])
+@auth_required
+def get_meal(user_id, meal_id):
+    """Get a specific meal by ID"""
+    try:
+        meal = meal_log_model.get(meal_id, user_id)
+        return jsonify(meal)
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': f"Failed to get meal: {str(e)}"}), 500
+
 
 @nutrition_bp.route('/meals/<meal_id>', methods=['PUT'])
 @auth_required
 def update_meal(user_id, meal_id):
-    """Update a meal log"""
+    """Update a meal"""
     try:
         data = request.get_json()
-        meal_service = MealLog(db)
-        result = meal_service.update(meal_id, user_id, data)
-        return jsonify(result)
+        updated_meal = meal_log_model.update(meal_id, user_id, data)
+        return jsonify(updated_meal)
+        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f"Failed to update meal: {str(e)}"}), 500
 
+
 @nutrition_bp.route('/meals/<meal_id>', methods=['DELETE'])
 @auth_required
 def delete_meal(user_id, meal_id):
-    """Delete a meal log"""
+    """Delete a meal"""
     try:
-        meal_service = MealLog(db)
-        meal_service.delete(meal_id, user_id)
+        meal_log_model.delete(meal_id, user_id)
         return jsonify({'message': 'Meal deleted successfully'}), 200
+        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f"Failed to delete meal: {str(e)}"}), 500
 
-# Nutrition Summary and Analytics
-@nutrition_bp.route('/summary/daily', methods=['GET'])
+
+@nutrition_bp.route('/stats/daily', methods=['GET'])
 @auth_required
-def get_daily_summary(user_id):
-    """Get nutrition summary for a specific day"""
+def get_daily_nutrition_stats(user_id):
+    """Get daily nutrition statistics"""
     try:
+        # Get date parameter
         date_str = request.args.get('date')
         if not date_str:
-            # Default to today
-            date = datetime.now().strftime('%Y-%m-%d')
-        else:
-            date = date_str
+            return jsonify({'error': 'Date parameter is required'}), 400
             
-        # Get all meals for the specified day
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+            
+        # Get all meals for the day
         query_params = {
-            'date': date,
+            'date': date_str,
             'limit': 100,  # High limit to get all meals for the day
             'offset': 0
         }
         
-        meal_service = MealLog(db)
-        meals_result = meal_service.list(user_id, query_params)
-        meals = meals_result.get('meals', [])
+        meals_result = meal_log_model.list(user_id, query_params)
+        meals = meals_result['meals']
         
-        # Calculate nutrition totals
-        nutrition_totals = {
-            'calories': 0,
-            'protein': 0,
-            'carbs': 0,
-            'fat': 0,
-            'fiber': 0,
-            'sugar': 0
+        # Initialize stats
+        stats = {
+            'date': date_str,
+            'total': {
+                'calories': 0,
+                'protein': 0,
+                'carbs': 0,
+                'fat': 0,
+                'fiber': 0,
+                'sugar': 0,
+                'sodium': 0,
+                'cholesterol': 0
+            },
+            'by_meal_type': {},
+            'meal_count': len(meals)
         }
         
-        meal_breakdown = []
-        
+        # Calculate totals
         for meal in meals:
-            meal_nutrition = meal.get('nutrition_totals', {})
-            meal_summary = {
-                'id': meal.get('id'),
-                'name': meal.get('name'),
-                'meal_type': meal.get('meal_type'),
-                'meal_time': meal.get('meal_time'),
-                'nutrition': meal_nutrition
+            # Add to total
+            nutrition = meal.get('nutrition_totals', {})
+            for key in stats['total']:
+                if key in nutrition:
+                    stats['total'][key] += float(nutrition[key])
+            
+            # Add to meal type breakdown
+            meal_type = meal.get('meal_type', 'other')
+            if meal_type not in stats['by_meal_type']:
+                stats['by_meal_type'][meal_type] = {
+                    'calories': 0,
+                    'protein': 0,
+                    'carbs': 0,
+                    'fat': 0,
+                    'meal_count': 0
+                }
+                
+            stats['by_meal_type'][meal_type]['meal_count'] += 1
+            for key in ['calories', 'protein', 'carbs', 'fat']:
+                if key in nutrition:
+                    stats['by_meal_type'][meal_type][key] += float(nutrition[key])
+        
+        # Round values for better display
+        for key in stats['total']:
+            stats['total'][key] = round(stats['total'][key], 1)
+            
+        for meal_type in stats['by_meal_type']:
+            for key in stats['by_meal_type'][meal_type]:
+                if key != 'meal_count':
+                    stats['by_meal_type'][meal_type][key] = round(stats['by_meal_type'][meal_type][key], 1)
+        
+        # Calculate macronutrient percentages
+        total_calories = stats['total']['calories']
+        if total_calories > 0:
+            stats['macro_percentages'] = {
+                'protein': round((stats['total']['protein'] * 4 / total_calories) * 100, 1) if stats['total']['protein'] > 0 else 0,
+                'carbs': round((stats['total']['carbs'] * 4 / total_calories) * 100, 1) if stats['total']['carbs'] > 0 else 0,
+                'fat': round((stats['total']['fat'] * 9 / total_calories) * 100, 1) if stats['total']['fat'] > 0 else 0
             }
-            meal_breakdown.append(meal_summary)
+        else:
+            stats['macro_percentages'] = {'protein': 0, 'carbs': 0, 'fat': 0}
             
-            # Add to totals
-            for key in nutrition_totals:
-                if key in meal_nutrition:
-                    nutrition_totals[key] += meal_nutrition.get(key, 0)
+        return jsonify(stats)
         
-        # Round values for display
-        for key in nutrition_totals:
-            nutrition_totals[key] = round(nutrition_totals[key], 1)
-            
-        return jsonify({
-            'date': date,
-            'nutrition_totals': nutrition_totals,
-            'meal_breakdown': meal_breakdown
-        })
     except Exception as e:
-        return jsonify({'error': f"Failed to get daily summary: {str(e)}"}), 500
+        return jsonify({'error': f"Failed to get daily nutrition stats: {str(e)}"}), 500
 
-@nutrition_bp.route('/summary/weekly', methods=['GET'])
+
+@nutrition_bp.route('/stats/weekly', methods=['GET'])
 @auth_required
-def get_weekly_summary(user_id):
-    """Get nutrition summary for the past week"""
+def get_weekly_nutrition_stats(user_id):
+    """Get weekly nutrition statistics"""
     try:
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=7)
+        # Get start and end date parameters
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
         
-        # Format dates for queries
-        end_date_str = end_date.strftime('%Y-%m-%d')
-        start_date_str = start_date.strftime('%Y-%m-%d')
+        if not start_date_str or not end_date_str:
+            return jsonify({'error': 'Both start_date and end_date parameters are required'}), 400
+            
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+            
+        # Create Firestore reference
+        db = firebase_admin.firestore.client()
         
-        # Create daily summaries
-        daily_data = []
+        # Get all meals within date range
+        meals_ref = db.collection('meals').where('userId', '==', user_id)
+        meals_ref = meals_ref.where('meal_time', '>=', start_date)
+        meals_ref = meals_ref.where('meal_time', '<=', end_date)
         
+        # Execute query
+        meal_docs = meals_ref.stream()
+        meals = []
+        for doc in meal_docs:
+            meal = doc.to_dict()
+            meal['id'] = doc.id
+            meals.append(meal)
+            
+        # Group by day
+        daily_stats = {}
         current_date = start_date
         while current_date <= end_date:
             date_str = current_date.strftime('%Y-%m-%d')
-            
-            # Get meals for this day
-            query_params = {
+            daily_stats[date_str] = {
                 'date': date_str,
-                'limit': 100,
-                'offset': 0
+                'calories': 0,
+                'protein': 0,
+                'carbs': 0,
+                'fat': 0,
+                'meal_count': 0
             }
+            current_date = current_date.replace(day=current_date.day + 1)
             
-            meal_service = MealLog(db)
-            meals_result = meal_service.list(user_id, query_params)
-            meals = meals_result.get('meals', [])
-            
-            # Calculate nutrition totals for the day
-            nutrition_totals = {
+        # Calculate daily totals
+        for meal in meals:
+            meal_time = meal.get('meal_time')
+            if hasattr(meal_time, 'strftime'):
+                day_str = meal_time.strftime('%Y-%m-%d')
+            else:
+                # Handle Firestore timestamps
+                day_str = datetime.fromtimestamp(meal_time.seconds).strftime('%Y-%m-%d')
+                
+            if day_str in daily_stats:
+                daily_stats[day_str]['meal_count'] += 1
+                nutrition = meal.get('nutrition_totals', {})
+                for key in ['calories', 'protein', 'carbs', 'fat']:
+                    if key in nutrition:
+                        daily_stats[day_str][key] += float(nutrition[key])
+                        
+        # Calculate weekly averages
+        days_with_data = sum(1 for day in daily_stats.values() if day['meal_count'] > 0)
+        
+        weekly_summary = {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'days_with_data': days_with_data,
+            'total_meals': sum(day['meal_count'] for day in daily_stats.values()),
+            'daily_average': {
                 'calories': 0,
                 'protein': 0,
                 'carbs': 0,
                 'fat': 0
-            }
-            
-            for meal in meals:
-                meal_nutrition = meal.get('nutrition_totals', {})
-                for key in nutrition_totals:
-                    if key in meal_nutrition:
-                        nutrition_totals[key] += meal_nutrition.get(key, 0)
-            
-            # Round values
-            for key in nutrition_totals:
-                nutrition_totals[key] = round(nutrition_totals[key], 1)
-                
-            daily_data.append({
-                'date': date_str,
-                'nutrition': nutrition_totals,
-                'meal_count': len(meals)
-            })
-            
-            # Move to next day
-            current_date += timedelta(days=1)
-        
-        # Calculate weekly averages
-        week_totals = {
-            'calories': 0,
-            'protein': 0,
-            'carbs': 0,
-            'fat': 0
+            },
+            'daily_breakdown': [daily_stats[date] for date in sorted(daily_stats.keys())]
         }
         
-        for day in daily_data:
-            for key in week_totals:
-                week_totals[key] += day['nutrition'].get(key, 0)
+        if days_with_data > 0:
+            for key in ['calories', 'protein', 'carbs', 'fat']:
+                total = sum(day[key] for day in daily_stats.values())
+                weekly_summary['daily_average'][key] = round(total / days_with_data, 1)
         
-        # Calculate averages
-        week_averages = {}
-        for key in week_totals:
-            week_averages[key] = round(week_totals[key] / 7, 1)
+        return jsonify(weekly_summary)
+        
+    except Exception as e:
+        return jsonify({'error': f"Failed to get weekly nutrition stats: {str(e)}"}), 500
+
+
+@nutrition_bp.route('/barcode/lookup', methods=['GET'])
+@auth_required
+def lookup_barcode(user_id):
+    """Look up food by barcode"""
+    try:
+        barcode = request.args.get('code')
+        
+        if not barcode:
+            return jsonify({'error': 'Barcode is required'}), 400
             
+        # First check if it exists in our database
+        db = firebase_admin.firestore.client()
+        food_items = db.collection('food_items').where('barcode', '==', barcode).limit(1).stream()
+        
+        food_item = None
+        for doc in food_items:
+            food_item = doc.to_dict()
+            food_item['id'] = doc.id
+            break
+            
+        if food_item:
+            return jsonify({'food': food_item, 'source': 'database'})
+            
+        # If not found, use an external service
+        # This is a placeholder - in production, you'd implement a real barcode lookup API
+        # like Open Food Facts or USDA Global Branded Food Products Database
+        
+        # Simulate response from external API
         return jsonify({
-            'start_date': start_date_str,
-            'end_date': end_date_str,
-            'daily_data': daily_data,
-            'week_totals': week_totals,
-            'week_averages': week_averages
-        })
+            'error': 'Barcode lookup not implemented',
+            'message': 'Please add this item manually'
+        }), 501
+        
     except Exception as e:
-        return jsonify({'error': f"Failed to get weekly summary: {str(e)}"}), 500
-
-# USDA Food Database Search
-@nutrition_bp.route('/food-database/search', methods=['GET'])
-@auth_required
-def search_food_database(user_id):
-    """Search the USDA food database"""
-    from utils.api_clients import USDAClient
-    from config import Config
-    
-    try:
-        query = request.args.get('q', '')
-        page_size = request.args.get('pageSize', 25, type=int)
-        page_number = request.args.get('pageNumber', 1, type=int)
-        
-        if not query:
-            return jsonify({'error': 'Search query is required'}), 400
-            
-        # Initialize USDA client
-        usda_client = USDAClient(Config.USDA_API_KEY, Config.USDA_API_BASE_URL)
-        
-        # Search for foods
-        result = usda_client.search_foods(query, page_size, page_number)
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': f"Failed to search food database: {str(e)}"}), 500
-
-@nutrition_bp.route('/food-database/food/<fdc_id>', methods=['GET'])
-@auth_required
-def get_food_details(user_id, fdc_id):
-    """Get detailed information for a specific food item from USDA database"""
-    from utils.api_clients import USDAClient
-    from config import Config
-    
-    try:
-        # Initialize USDA client
-        usda_client = USDAClient(Config.USDA_API_KEY, Config.USDA_API_BASE_URL)
-        
-        # Get food details
-        result = usda_client.get_food_details(fdc_id)
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': f"Failed to get food details: {str(e)}"}), 500
-
-@nutrition_bp.route('/food-database/import', methods=['POST'])
-@auth_required
-def import_from_usda(user_id):
-    """Import a food item from USDA database to user's collection"""
-    from utils.api_clients import USDAClient
-    from config import Config
-    
-    try:
-        data = request.get_json()
-        fdc_id = data.get('fdc_id')
-        
-        if not fdc_id:
-            return jsonify({'error': 'FDC ID is required'}), 400
-            
-        # Initialize USDA client
-        usda_client = USDAClient(Config.USDA_API_KEY, Config.USDA_API_BASE_URL)
-        
-        # Get food details from USDA
-        food_details = usda_client.get_food_details(fdc_id)
-        
-        # Convert to our food item format
-        food_item_data = {
-            'name': food_details.get('description', ''),
-            'brand': food_details.get('brandName', ''),
-            'fdcId': fdc_id,
-            'serving_size': 100,  # Default to 100g
-            'serving_unit': 'g',
-            'is_custom': False,
-            'nutrition': {}
-        }
-        
-        # Extract nutrients
-        nutrients = food_details.get('foodNutrients', [])
-        for nutrient in nutrients:
-            nutrient_name = nutrient.get('nutrient', {}).get('name', '').lower()
-            value = nutrient.get('amount', 0)
-            
-            if 'energy' in nutrient_name and 'kcal' in nutrient.get('nutrient', {}).get('unitName', '').lower():
-                food_item_data['nutrition']['calories'] = value
-            elif 'protein' in nutrient_name:
-                food_item_data['nutrition']['protein'] = value
-            elif 'carbohydrate' in nutrient_name and 'by difference' in nutrient_name:
-                food_item_data['nutrition']['carbs'] = value
-            elif 'total lipid (fat)' in nutrient_name:
-                food_item_data['nutrition']['fat'] = value
-            elif 'fiber' in nutrient_name:
-                food_item_data['nutrition']['fiber'] = value
-            elif 'sugars' in nutrient_name:
-                food_item_data['nutrition']['sugar'] = value
-            elif 'sodium' in nutrient_name:
-                food_item_data['nutrition']['sodium'] = value
-            elif 'cholesterol' in nutrient_name:
-                food_item_data['nutrition']['cholesterol'] = value
-        
-        # Create food item
-        food_item_service = FoodItem(db)
-        result = food_item_service.create(user_id, food_item_data)
-        
-        return jsonify(result), 201
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': f"Failed to import food item: {str(e)}"}), 500
+        return jsonify({'error': f"Failed to look up barcode: {str(e)}"}), 500
