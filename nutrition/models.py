@@ -416,4 +416,29 @@ class MealLog(NutritionModel):
         
         # Update the document
         update_data = {k: v for k, v in data.items() if k != 'id' and k != 'userId'}
-        doc_ref.update
+        doc_ref.update(update_data)
+        
+        # Return updated meal
+        updated_meal = meal.copy()
+        updated_meal.update(update_data)
+        updated_meal['id'] = meal_id
+        
+        return updated_meal
+    
+    def delete(self, meal_id: str, user_id: str) -> bool:
+        """Delete a meal"""
+        doc_ref = self.db.collection(self.collection).document(meal_id)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            raise ValueError("Meal not found")
+            
+        meal = doc.to_dict()
+        
+        # Check ownership
+        if meal.get('userId') != user_id:
+            raise ValueError("Unauthorized to delete this meal")
+            
+        # Delete the document
+        doc_ref.delete()
+        return True
