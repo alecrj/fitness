@@ -1,92 +1,55 @@
+# social/models.py
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import firebase_admin
+from firebase_admin import firestore
 
-class SocialModel:
-    """Base class for social models with common methods"""
-    @staticmethod
-    def validate_content(content: str) -> str:
-        """Validates and sanitizes user content"""
-        if not content or content.strip() == "":
-            raise ValueError("Content cannot be empty")
-            
-        # Sanitize and truncate if needed
-        sanitized = content.strip()
-        if len(sanitized) > 5000:  # Set a reasonable limit
-            sanitized = sanitized[:5000]
-            
-        return sanitized
-
-class Post(SocialModel):
-    """Model for social posts"""
-    def __init__(self, db_ref):
-        self.db = db_ref
+class Post:
+    """Model for social posts in the application"""
+    
+    def __init__(self, db=None):
+        """Initialize the Post model with database reference"""
+        self.db = db or firebase_admin.firestore.client()
         self.collection = "posts"
     
     def create(self, user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new post
+        """Create a new social post
         
         Args:
             user_id: The ID of the user creating the post
             data: Post content and metadata
-                - content: Text content of the post
-                - image_url: Optional URL to an image
-                - recipe_id: Optional reference to a recipe
-                - tags: Optional array of tags
-                
+            
         Returns:
-            The created post with ID
+            Dict containing the created post with ID
+            
+        Raises:
+            ValueError: If required fields are missing
         """
         # Validate required fields
-        if not data.get('content') and not data.get('recipe_id') and not data.get('image_url'):
-            raise ValueError("Post must have content, image, or recipe reference")
-            
-        # Get user profile
-        user_ref = self.db.collection('users').document(user_id).get()
-        if not user_ref.exists:
-            raise ValueError("User profile not found")
-            
-        user = user_ref.to_dict()
+        if not data.get('content'):
+            raise ValueError("Post content is required")
         
-        # Process content
-        content = data.get('content', '')
-        if content:
-            content = self.validate_content(content)
-            
-        # Validate recipe reference if provided
-        recipe_id = data.get('recipe_id')
-        recipe_data = None
-        if recipe_id:
-            recipe_ref = self.db.collection('recipes').document(recipe_id).get()
-            if not recipe_ref.exists:
-                raise ValueError("Recipe not found")
-                
-            recipe = recipe_ref.to_dict()
-            # Check if recipe belongs to user or is public
-            if recipe.get('userId') != user_id and not recipe.get('isPublic', False):
-                raise ValueError("Cannot share private recipe")
-                
-            # Include basic recipe info
-            recipe_data = {
-                'id': recipe_id,
-                'title': recipe.get('title'),
-                'imageUrl': recipe.get('imageUrl'),
-                'description': recipe.get('description', '')
-            }
-            
+        # Get user details
+        user_doc = self.db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            raise ValueError("User not found")
+        
+        user = user_doc.to_dict()
+        
         # Create post document
         post = {
             'userId': user_id,
             'userName': user.get('name', 'User'),
             'userProfileImage': user.get('profile_image_url'),
-            'content': content,
-            'imageUrl': data.get('image_url'),
-            'recipeId': recipe_id,
-            'recipeData': recipe_data,
+            'content': data['content'],
+            'imageUrl': data.get('imageUrl'),
+            'recipeId': data.get('recipeId'),
+            'mealId': data.get('mealId'),
             'tags': data.get('tags', []),
-            'likeCount': 0,
-            'commentCount': 0,
-            'createdAt': datetime.utcnow(),
-            'updatedAt': datetime.utcnow()
+            'likes': 0,
+            'comments': 0,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'updatedAt': firestore.SERVER_TIMESTAMP
         }
         
         # Save to database
@@ -104,7 +67,7 @@ class Post(SocialModel):
             post_id: The ID of the post to retrieve
             
         Returns:
-            The post with ID
+            Dict containing the post data
             
         Raises:
             ValueError: If post not found
@@ -118,57 +81,55 @@ class Post(SocialModel):
         post['id'] = doc.id
         return post
     
-    def list_feed(self, user_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
-        """List posts for user's feed with filtering and pagination
+    def list(self, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """List posts with filtering and pagination
         
         Args:
-            user_id: The ID of the user viewing the feed
-            query_params: Query parameters for filtering and pagination
-                - limit: Number of items per page (default: 20)
-                - offset: Starting offset for pagination (default: 0)
-                - tag: Filter by specific tag
-                - user_id: Filter by specific user
-                
+            query_params: Dict containing filter and pagination parameters
+            
         Returns:
-            Dict with posts array and pagination info
+            Dict containing posts and pagination info
         """
-        # Get pagination params
+        # Start with base query
+        query = self.db.collection(self.collection)
+        
+        # Apply user filter if provided
+        if query_params.get('userId'):
+            query = query.where('userId', '==', query_params['userId'])
+        
+        # Apply tag filter if provided
+        if query_params.get('tag'):
+            query = query.where('tags', 'array_contains', query_params['tag'])
+            
+        # Apply recipe filter if provided
+        if query_params.get('recipeId'):
+            query = query.where('recipeId', '==', query_params['recipeId'])
+        
+        # Apply meal filter if provided
+        if query_params.get('mealId'):
+            query = query.where('mealId', '==', query_params['mealId'])
+            
+        # Apply sorting - newest first by default
+        query = query.order_by('createdAt', direction=firestore.Query.DESCENDING)
+        
+        # Pagination
         limit = int(query_params.get('limit', 20))
         offset = int(query_params.get('offset', 0))
         
-        # Start with base query
-        query = self.db.collection(self.collection).order_by('createdAt', direction=self.db.Query.DESCENDING)
-        
-        # Apply filters
-        tag_filter = query_params.get('tag')
-        if tag_filter:
-            query = query.where('tags', 'array_contains', tag_filter)
-            
-        specific_user = query_params.get('user_id')
-        if specific_user:
-            query = query.where('userId', '==', specific_user)
-        
-        # Execute query
+        # Execute query with pagination
         posts = []
-        # Get total first for pagination
-        all_posts = [doc for doc in query.stream()]
-        total = len(all_posts)
+        post_docs = query.limit(limit).offset(offset).stream()
         
-        # Apply pagination in memory
-        for doc in all_posts[offset:offset+limit]:
+        for doc in post_docs:
             post = doc.to_dict()
             post['id'] = doc.id
-            
-            # Add user's like status
-            post['userLiked'] = False
-            try:
-                like_ref = self.db.collection('likes').document(f"{user_id}_{doc.id}").get()
-                if like_ref.exists:
-                    post['userLiked'] = True
-            except:
-                pass
-                
             posts.append(post)
+            
+        # Get total count (for pagination)
+        # Note: This is not efficient for large collections
+        # In production, consider using a counter or alternative approach
+        total_query = query.stream()
+        total = sum(1 for _ in total_query)
             
         return {
             'posts': posts,
@@ -183,14 +144,12 @@ class Post(SocialModel):
         """Update a post
         
         Args:
-            post_id: The ID of the post to update
-            user_id: The ID of the user updating the post
+            post_id: ID of the post to update
+            user_id: ID of the user making the update (for authorization)
             data: Updated post data
-                - content: New text content
-                - tags: New tags array
-                
+            
         Returns:
-            The updated post
+            Dict containing the updated post
             
         Raises:
             ValueError: If post not found or user not authorized
@@ -205,19 +164,17 @@ class Post(SocialModel):
         
         # Check ownership
         if post.get('userId') != user_id:
-            raise ValueError("Not authorized to update this post")
+            raise ValueError("Unauthorized to update this post")
             
-        # Process content if provided
-        if 'content' in data:
-            data['content'] = self.validate_content(data['content'])
-            
-        # Update the document
+        # Update fields
         update_data = {
-            'content': data.get('content', post.get('content', '')),
+            'content': data.get('content', post.get('content')),
+            'imageUrl': data.get('imageUrl', post.get('imageUrl')),
             'tags': data.get('tags', post.get('tags', [])),
-            'updatedAt': datetime.utcnow()
+            'updatedAt': firestore.SERVER_TIMESTAMP
         }
         
+        # Update document
         doc_ref.update(update_data)
         
         # Return updated post
@@ -231,11 +188,11 @@ class Post(SocialModel):
         """Delete a post
         
         Args:
-            post_id: The ID of the post to delete
-            user_id: The ID of the user deleting the post
+            post_id: ID of the post to delete
+            user_id: ID of the user making the deletion (for authorization)
             
         Returns:
-            True if successful
+            Boolean indicating success
             
         Raises:
             ValueError: If post not found or user not authorized
@@ -250,83 +207,27 @@ class Post(SocialModel):
         
         # Check ownership
         if post.get('userId') != user_id:
-            raise ValueError("Not authorized to delete this post")
+            raise ValueError("Unauthorized to delete this post")
             
-        # Delete comments
-        comments_ref = self.db.collection('comments').where('postId', '==', post_id).stream()
-        for comment_doc in comments_ref:
+        # Delete the document
+        doc_ref.delete()
+        
+        # Also delete associated comments
+        comments_query = self.db.collection('comments').where('postId', '==', post_id)
+        for comment_doc in comments_query.stream():
             comment_doc.reference.delete()
             
-        # Delete likes
-        likes_ref = self.db.collection('likes').where('postId', '==', post_id).stream()
-        for like_doc in likes_ref:
-            like_doc.reference.delete()
-            
-        # Delete the post
-        doc_ref.delete()
         return True
-    
-    def like(self, post_id: str, user_id: str) -> Dict[str, Any]:
-        """Like a post
-        
-        Args:
-            post_id: The ID of the post to like
-            user_id: The ID of the user liking the post
-            
-        Returns:
-            Dict with updated like count and status
-        """
-        # Check if post exists
-        post_ref = self.db.collection(self.collection).document(post_id)
-        post = post_ref.get()
-        
-        if not post.exists:
-            raise ValueError("Post not found")
-            
-        # Check if already liked
-        like_id = f"{user_id}_{post_id}"
-        like_ref = self.db.collection('likes').document(like_id).get()
-        
-        if like_ref.exists:
-            # Already liked, so unlike
-            self.db.collection('likes').document(like_id).delete()
-            
-            # Decrement like count
-            post_ref.update({
-                'likeCount': self.db.Increment(-1)
-            })
-            
-            return {
-                'postId': post_id,
-                'liked': False,
-                'likeCount': post.to_dict().get('likeCount', 1) - 1
-            }
-        else:
-            # Not liked, so add like
-            like_data = {
-                'userId': user_id,
-                'postId': post_id,
-                'createdAt': datetime.utcnow()
-            }
-            
-            self.db.collection('likes').document(like_id).set(like_data)
-            
-            # Increment like count
-            post_ref.update({
-                'likeCount': self.db.Increment(1)
-            })
-            
-            return {
-                'postId': post_id,
-                'liked': True,
-                'likeCount': post.to_dict().get('likeCount', 0) + 1
-            }
 
-class Comment(SocialModel):
-    """Model for post comments"""
-    def __init__(self, db_ref):
-        self.db = db_ref
+
+class Comment:
+    """Model for comments on social posts"""
+    
+    def __init__(self, db=None):
+        """Initialize the Comment model with database reference"""
+        self.db = db or firebase_admin.firestore.client()
         self.collection = "comments"
+        self.post_model = Post(db)
     
     def create(self, user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new comment
@@ -334,47 +235,42 @@ class Comment(SocialModel):
         Args:
             user_id: The ID of the user creating the comment
             data: Comment content and metadata
-                - post_id: ID of the post being commented on
-                - content: Text content of the comment
-                
+            
         Returns:
-            The created comment with ID
+            Dict containing the created comment
+            
+        Raises:
+            ValueError: If required fields are missing or post not found
         """
         # Validate required fields
-        if not data.get('post_id'):
-            raise ValueError("Post ID is required")
-            
         if not data.get('content'):
             raise ValueError("Comment content is required")
             
-        post_id = data.get('post_id')
+        if not data.get('postId'):
+            raise ValueError("Post ID is required")
             
-        # Check if post exists
-        post_ref = self.db.collection('posts').document(post_id)
-        post = post_ref.get()
-        
-        if not post.exists:
+        # Verify post exists
+        try:
+            post = self.post_model.get(data['postId'])
+        except ValueError:
             raise ValueError("Post not found")
             
-        # Get user profile
-        user_ref = self.db.collection('users').document(user_id).get()
-        if not user_ref.exists:
-            raise ValueError("User profile not found")
+        # Get user details
+        user_doc = self.db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            raise ValueError("User not found")
             
-        user = user_ref.to_dict()
-            
-        # Process content
-        content = self.validate_content(data.get('content', ''))
-            
+        user = user_doc.to_dict()
+        
         # Create comment document
         comment = {
             'userId': user_id,
             'userName': user.get('name', 'User'),
             'userProfileImage': user.get('profile_image_url'),
-            'postId': post_id,
-            'content': content,
-            'createdAt': datetime.utcnow(),
-            'updatedAt': datetime.utcnow()
+            'postId': data['postId'],
+            'content': data['content'],
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'updatedAt': firestore.SERVER_TIMESTAMP
         }
         
         # Save to database
@@ -382,46 +278,49 @@ class Comment(SocialModel):
         doc_ref.set(comment)
         
         # Increment comment count on post
-        post_ref.update({
-            'commentCount': self.db.Increment(1)
+        self.db.collection('posts').document(data['postId']).update({
+            'comments': firestore.Increment(1)
         })
         
         # Return with ID
         comment['id'] = doc_ref.id
         return comment
     
-    def list(self, post_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
-        """List comments for a post with pagination
+    def list_for_post(self, post_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """List comments for a specific post
         
         Args:
             post_id: The ID of the post to get comments for
-            query_params: Query parameters for pagination
-                - limit: Number of items per page (default: 20)
-                - offset: Starting offset for pagination (default: 0)
-                
+            query_params: Dict containing pagination parameters
+            
         Returns:
-            Dict with comments array and pagination info
+            Dict containing comments and pagination info
         """
-        # Get pagination params
+        # Start with base query
+        query = self.db.collection(self.collection).where('postId', '==', post_id)
+        
+        # Apply sorting - newest first by default
+        sort_by = query_params.get('sort_by', 'createdAt')
+        sort_dir = query_params.get('sort_dir', 'desc')
+        direction = firestore.Query.DESCENDING if sort_dir == 'desc' else firestore.Query.ASCENDING
+        query = query.order_by(sort_by, direction=direction)
+        
+        # Pagination
         limit = int(query_params.get('limit', 20))
         offset = int(query_params.get('offset', 0))
         
-        # Query comments for post
-        query = self.db.collection(self.collection) \
-            .where('postId', '==', post_id) \
-            .order_by('createdAt', direction=self.db.Query.ASCENDING)
-            
         # Execute query
         comments = []
-        # Get total first for pagination
-        all_comments = [doc for doc in query.stream()]
-        total = len(all_comments)
+        comment_docs = query.limit(limit).offset(offset).stream()
         
-        # Apply pagination in memory
-        for doc in all_comments[offset:offset+limit]:
+        for doc in comment_docs:
             comment = doc.to_dict()
             comment['id'] = doc.id
             comments.append(comment)
+            
+        # Get total count
+        total_query = self.db.collection(self.collection).where('postId', '==', post_id).stream()
+        total = sum(1 for _ in total_query)
             
         return {
             'comments': comments,
@@ -432,60 +331,15 @@ class Comment(SocialModel):
             }
         }
     
-    def update(self, comment_id: str, user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update a comment
-        
-        Args:
-            comment_id: The ID of the comment to update
-            user_id: The ID of the user updating the comment
-            data: Updated comment data
-                - content: New text content
-                
-        Returns:
-            The updated comment
-            
-        Raises:
-            ValueError: If comment not found or user not authorized
-        """
-        doc_ref = self.db.collection(self.collection).document(comment_id)
-        doc = doc_ref.get()
-        
-        if not doc.exists:
-            raise ValueError("Comment not found")
-            
-        comment = doc.to_dict()
-        
-        # Check ownership
-        if comment.get('userId') != user_id:
-            raise ValueError("Not authorized to update this comment")
-            
-        # Process content
-        content = self.validate_content(data.get('content', ''))
-            
-        # Update the document
-        update_data = {
-            'content': content,
-            'updatedAt': datetime.utcnow()
-        }
-        
-        doc_ref.update(update_data)
-        
-        # Return updated comment
-        updated_comment = comment.copy()
-        updated_comment.update(update_data)
-        updated_comment['id'] = comment_id
-        
-        return updated_comment
-    
     def delete(self, comment_id: str, user_id: str) -> bool:
         """Delete a comment
         
         Args:
             comment_id: The ID of the comment to delete
-            user_id: The ID of the user deleting the comment
+            user_id: The ID of the user making the deletion (for authorization)
             
         Returns:
-            True if successful
+            Boolean indicating success
             
         Raises:
             ValueError: If comment not found or user not authorized
@@ -500,157 +354,286 @@ class Comment(SocialModel):
         
         # Check ownership
         if comment.get('userId') != user_id:
-            raise ValueError("Not authorized to delete this comment")
+            raise ValueError("Unauthorized to delete this comment")
             
-        # Get post to update comment count
+        # Get post ID for decrementing comment count
         post_id = comment.get('postId')
-        post_ref = self.db.collection('posts').document(post_id)
         
-        # Delete the comment
+        # Delete the document
         doc_ref.delete()
         
         # Decrement comment count on post
-        post_ref.update({
-            'commentCount': self.db.Increment(-1)
-        })
-        
-        return True
-
-class Connection(SocialModel):
-    """Model for user connections (following/followers)"""
-    def __init__(self, db_ref):
-        self.db = db_ref
-        self.collection = "connections"
-    
-    def follow(self, follower_id: str, followed_id: str) -> Dict[str, Any]:
-        """Follow a user
-        
-        Args:
-            follower_id: The ID of the user following
-            followed_id: The ID of the user being followed
-            
-        Returns:
-            Dict with connection status
-        """
-        # Check if users exist
-        if follower_id == followed_id:
-            raise ValueError("Cannot follow yourself")
-            
-        follower_ref = self.db.collection('users').document(follower_id).get()
-        if not follower_ref.exists:
-            raise ValueError("Follower user not found")
-            
-        followed_ref = self.db.collection('users').document(followed_id).get()
-        if not followed_ref.exists:
-            raise ValueError("User to follow not found")
-            
-        # Check if already following
-        connection_id = f"{follower_id}_{followed_id}"
-        connection_ref = self.db.collection(self.collection).document(connection_id).get()
-        
-        if connection_ref.exists:
-            # Already following, so unfollow
-            self.db.collection(self.collection).document(connection_id).delete()
-            
-            # Update follower and following counts
-            self.db.collection('users').document(follower_id).update({
-                'followingCount': self.db.Increment(-1)
+        if post_id:
+            self.db.collection('posts').document(post_id).update({
+                'comments': firestore.Increment(-1)
             })
             
-            self.db.collection('users').document(followed_id).update({
-                'followerCount': self.db.Increment(-1)
+        return True
+
+
+class Like:
+    """Model for likes on posts"""
+    
+    def __init__(self, db=None):
+        """Initialize the Like model with database reference"""
+        self.db = db or firebase_admin.firestore.client()
+        self.collection = "likes"
+        self.post_model = Post(db)
+    
+    def toggle(self, user_id: str, post_id: str) -> Dict[str, Any]:
+        """Toggle like status for a post
+        
+        Args:
+            user_id: The ID of the user toggling the like
+            post_id: The ID of the post to like/unlike
+            
+        Returns:
+            Dict containing the updated like status
+            
+        Raises:
+            ValueError: If post not found
+        """
+        # Verify post exists
+        try:
+            post = self.post_model.get(post_id)
+        except ValueError:
+            raise ValueError("Post not found")
+            
+        # Check if like already exists
+        like_id = f"{user_id}_{post_id}"
+        like_ref = self.db.collection(self.collection).document(like_id)
+        like_doc = like_ref.get()
+        
+        if like_doc.exists:
+            # Unlike: Delete the like document
+            like_ref.delete()
+            
+            # Decrement like count on post
+            self.db.collection('posts').document(post_id).update({
+                'likes': firestore.Increment(-1)
+            })
+            
+            return {
+                'liked': False,
+                'postId': post_id,
+                'likeCount': post['likes'] - 1
+            }
+        else:
+            # Like: Create like document
+            like_data = {
+                'userId': user_id,
+                'postId': post_id,
+                'createdAt': firestore.SERVER_TIMESTAMP
+            }
+            
+            like_ref.set(like_data)
+            
+            # Increment like count on post
+            self.db.collection('posts').document(post_id).update({
+                'likes': firestore.Increment(1)
+            })
+            
+            return {
+                'liked': True,
+                'postId': post_id,
+                'likeCount': post['likes'] + 1
+            }
+    
+    def check_status(self, user_id: str, post_id: str) -> bool:
+        """Check if user has liked a post
+        
+        Args:
+            user_id: The ID of the user
+            post_id: The ID of the post
+            
+        Returns:
+            Boolean indicating if the post is liked by the user
+        """
+        like_id = f"{user_id}_{post_id}"
+        like_doc = self.db.collection(self.collection).document(like_id).get()
+        return like_doc.exists
+    
+    def get_user_likes(self, user_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get posts liked by a user
+        
+        Args:
+            user_id: The ID of the user
+            query_params: Dict containing pagination parameters
+            
+        Returns:
+            Dict containing liked posts and pagination info
+        """
+        # Start with base query
+        query = self.db.collection(self.collection).where('userId', '==', user_id)
+        
+        # Apply sorting - newest first by default
+        query = query.order_by('createdAt', direction=firestore.Query.DESCENDING)
+        
+        # Pagination
+        limit = int(query_params.get('limit', 20))
+        offset = int(query_params.get('offset', 0))
+        
+        # Execute query
+        like_docs = query.limit(limit).offset(offset).stream()
+        post_ids = [doc.to_dict()['postId'] for doc in like_docs]
+        
+        # Fetch the actual posts
+        posts = []
+        for post_id in post_ids:
+            try:
+                post = self.post_model.get(post_id)
+                posts.append(post)
+            except ValueError:
+                # Skip posts that no longer exist
+                continue
+                
+        # Get total count
+        total_query = self.db.collection(self.collection).where('userId', '==', user_id).stream()
+        total = sum(1 for _ in total_query)
+            
+        return {
+            'posts': posts,
+            'pagination': {
+                'total': total,
+                'limit': limit,
+                'offset': offset
+            }
+        }
+
+
+class Follow:
+    """Model for user following relationships"""
+    
+    def __init__(self, db=None):
+        """Initialize the Follow model with database reference"""
+        self.db = db or firebase_admin.firestore.client()
+        self.collection = "follows"
+    
+    def toggle(self, follower_id: str, following_id: str) -> Dict[str, Any]:
+        """Toggle follow status between two users
+        
+        Args:
+            follower_id: The ID of the user doing the following
+            following_id: The ID of the user being followed
+            
+        Returns:
+            Dict containing the updated follow status
+            
+        Raises:
+            ValueError: If users not found or trying to follow self
+        """
+        # Prevent self-following
+        if follower_id == following_id:
+            raise ValueError("Cannot follow yourself")
+            
+        # Verify both users exist
+        follower_doc = self.db.collection('users').document(follower_id).get()
+        following_doc = self.db.collection('users').document(following_id).get()
+        
+        if not follower_doc.exists:
+            raise ValueError("Follower user not found")
+            
+        if not following_doc.exists:
+            raise ValueError("Following user not found")
+            
+        # Check if follow relationship already exists
+        follow_id = f"{follower_id}_{following_id}"
+        follow_ref = self.db.collection(self.collection).document(follow_id)
+        follow_doc = follow_ref.get()
+        
+        if follow_doc.exists:
+            # Unfollow: Delete the follow document
+            follow_ref.delete()
+            
+            # Update follower counts
+            self.db.collection('users').document(follower_id).update({
+                'following_count': firestore.Increment(-1)
+            })
+            
+            self.db.collection('users').document(following_id).update({
+                'follower_count': firestore.Increment(-1)
             })
             
             return {
                 'following': False,
-                'followerId': follower_id,
-                'followedId': followed_id
+                'followingId': following_id
             }
         else:
-            # Not following, so add connection
-            connection_data = {
+            # Follow: Create follow document
+            follow_data = {
                 'followerId': follower_id,
-                'followedId': followed_id,
-                'createdAt': datetime.utcnow()
+                'followingId': following_id,
+                'createdAt': firestore.SERVER_TIMESTAMP
             }
             
-            self.db.collection(self.collection).document(connection_id).set(connection_data)
+            follow_ref.set(follow_data)
             
-            # Update follower and following counts
+            # Update follower counts
             self.db.collection('users').document(follower_id).update({
-                'followingCount': self.db.Increment(1)
+                'following_count': firestore.Increment(1)
             })
             
-            self.db.collection('users').document(followed_id).update({
-                'followerCount': self.db.Increment(1)
+            self.db.collection('users').document(following_id).update({
+                'follower_count': firestore.Increment(1)
             })
             
             return {
                 'following': True,
-                'followerId': follower_id,
-                'followedId': followed_id
+                'followingId': following_id
             }
     
-    def get_following_status(self, follower_id: str, followed_id: str) -> Dict[str, bool]:
-        """Check if user is following another user
+    def check_status(self, follower_id: str, following_id: str) -> bool:
+        """Check if one user follows another
         
         Args:
             follower_id: The ID of the potential follower
-            followed_id: The ID of the potentially followed user
+            following_id: The ID of the potentially followed user
             
         Returns:
-            Dict with following status
+            Boolean indicating if follow relationship exists
         """
-        connection_id = f"{follower_id}_{followed_id}"
-        connection_ref = self.db.collection(self.collection).document(connection_id).get()
-        
-        return {
-            'following': connection_ref.exists
-        }
+        follow_id = f"{follower_id}_{following_id}"
+        follow_doc = self.db.collection(self.collection).document(follow_id).get()
+        return follow_doc.exists
     
-    def list_followers(self, user_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
-        """List followers for a user with pagination
+    def get_followers(self, user_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get users who follow a specific user
         
         Args:
-            user_id: The ID of the user to get followers for
-            query_params: Query parameters for pagination
-                - limit: Number of items per page (default: 20)
-                - offset: Starting offset for pagination (default: 0)
-                
+            user_id: The ID of the user whose followers to get
+            query_params: Dict containing pagination parameters
+            
         Returns:
-            Dict with followers array and pagination info
+            Dict containing followers and pagination info
         """
-        # Get pagination params
+        # Start with base query
+        query = self.db.collection(self.collection).where('followingId', '==', user_id)
+        
+        # Apply sorting
+        query = query.order_by('createdAt', direction=firestore.Query.DESCENDING)
+        
+        # Pagination
         limit = int(query_params.get('limit', 20))
         offset = int(query_params.get('offset', 0))
         
-        # Query connections where user is being followed
-        query = self.db.collection(self.collection) \
-            .where('followedId', '==', user_id) \
-            .order_by('createdAt', direction=self.db.Query.DESCENDING)
-            
         # Execute query
-        followers = []
-        # Get total first for pagination
-        all_connections = [doc for doc in query.stream()]
-        total = len(all_connections)
+        follow_docs = query.limit(limit).offset(offset).stream()
         
-        # Apply pagination in memory
-        for doc in all_connections[offset:offset+limit]:
-            connection = doc.to_dict()
+        # Get the follower user profiles
+        followers = []
+        for doc in follow_docs:
+            follow_data = doc.to_dict()
+            follower_id = follow_data['followerId']
             
-            # Get follower user details
-            follower_id = connection.get('followerId')
-            follower_ref = self.db.collection('users').document(follower_id).get()
-            
-            if follower_ref.exists:
-                follower = follower_ref.to_dict()
-                followers.append({
-                    'id': follower_id,
-                    'name': follower.get('name', 'User'),
-                    'profileImage': follower.get('profile_image_url'),
-                    'followingSince': connection.get('createdAt')
-                })
+            user_doc = self.db.collection('users').document(follower_id).get()
+            if user_doc.exists:
+                user = user_doc.to_dict()
+                user['id'] = user_doc.id
+                followers.append(user)
+                
+        # Get total count
+        total_query = self.db.collection(self.collection).where('followingId', '==', user_id).stream()
+        total = sum(1 for _ in total_query)
             
         return {
             'followers': followers,
@@ -661,49 +644,44 @@ class Connection(SocialModel):
             }
         }
     
-    def list_following(self, user_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
-        """List users that a user is following with pagination
+    def get_following(self, user_id: str, query_params: Dict[str, Any]) -> Dict[str, Any]:
+        """Get users that a specific user follows
         
         Args:
-            user_id: The ID of the user to get following list for
-            query_params: Query parameters for pagination
-                - limit: Number of items per page (default: 20)
-                - offset: Starting offset for pagination (default: 0)
-                
+            user_id: The ID of the user whose followings to get
+            query_params: Dict containing pagination parameters
+            
         Returns:
-            Dict with following array and pagination info
+            Dict containing followed users and pagination info
         """
-        # Get pagination params
+        # Start with base query
+        query = self.db.collection(self.collection).where('followerId', '==', user_id)
+        
+        # Apply sorting
+        query = query.order_by('createdAt', direction=firestore.Query.DESCENDING)
+        
+        # Pagination
         limit = int(query_params.get('limit', 20))
         offset = int(query_params.get('offset', 0))
         
-        # Query connections where user is following
-        query = self.db.collection(self.collection) \
-            .where('followerId', '==', user_id) \
-            .order_by('createdAt', direction=self.db.Query.DESCENDING)
-            
         # Execute query
-        following = []
-        # Get total first for pagination
-        all_connections = [doc for doc in query.stream()]
-        total = len(all_connections)
+        follow_docs = query.limit(limit).offset(offset).stream()
         
-        # Apply pagination in memory
-        for doc in all_connections[offset:offset+limit]:
-            connection = doc.to_dict()
+        # Get the following user profiles
+        following = []
+        for doc in follow_docs:
+            follow_data = doc.to_dict()
+            following_id = follow_data['followingId']
             
-            # Get followed user details
-            followed_id = connection.get('followedId')
-            followed_ref = self.db.collection('users').document(followed_id).get()
-            
-            if followed_ref.exists:
-                followed = followed_ref.to_dict()
-                following.append({
-                    'id': followed_id,
-                    'name': followed.get('name', 'User'),
-                    'profileImage': followed.get('profile_image_url'),
-                    'followingSince': connection.get('createdAt')
-                })
+            user_doc = self.db.collection('users').document(following_id).get()
+            if user_doc.exists:
+                user = user_doc.to_dict()
+                user['id'] = user_doc.id
+                following.append(user)
+                
+        # Get total count
+        total_query = self.db.collection(self.collection).where('followerId', '==', user_id).stream()
+        total = sum(1 for _ in total_query)
             
         return {
             'following': following,
