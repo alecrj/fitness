@@ -17,9 +17,9 @@ bucket = storage.bucket()
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-# Import blueprints (comment out unused ones for now)
+# Import blueprints
 from auth.routes import auth_bp
-# from recipes.routes import recipes_bp
+from recipes.routes import recipes_bp
 # from nutrition.routes import nutrition_bp
 # from social.routes import social_bp
 
@@ -28,9 +28,9 @@ def create_app():
     app.config.from_object(Config)
     CORS(app)
 
-    # Register blueprints (comment out unused ones)
+    # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    # app.register_blueprint(recipes_bp, url_prefix='/api/recipes')
+    app.register_blueprint(recipes_bp, url_prefix='/api/recipes')
     # app.register_blueprint(nutrition_bp, url_prefix='/api/nutrition')
     # app.register_blueprint(social_bp, url_prefix='/api/social')
 
