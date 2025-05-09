@@ -36,6 +36,7 @@ from utils.background_tasks import get_task_status
 from utils.monitoring import track_api_performance, get_performance_stats
 from utils.health_check import check_health
 from utils.rate_limit import standard_rate_limit
+from utils.api_docs import register_api_docs, create_swagger_blueprint
 
 def create_app():
     """Create and configure the Flask application"""
@@ -94,6 +95,9 @@ def create_app():
 
     # Register error handlers
     register_error_handlers(app)
+
+    # Register API documentation
+    register_api_docs(app)
 
     # Task status endpoint
     @app.route('/api/tasks/<task_id>', methods=['GET'])

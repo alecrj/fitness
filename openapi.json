@@ -1,0 +1,666 @@
+{
+    "openapi": "3.0.2",
+    "info": {
+      "title": "Fitness/Food App API",
+      "version": "1.0.0",
+      "description": "API for fitness and food tracking application"
+    },
+    "servers": [
+      {
+        "url": "/api",
+        "description": "API server"
+      }
+    ],
+    "tags": [
+      {
+        "name": "auth",
+        "description": "Authentication endpoints"
+      },
+      {
+        "name": "recipes",
+        "description": "Recipe management endpoints"
+      },
+      {
+        "name": "nutrition",
+        "description": "Nutrition tracking endpoints"
+      },
+      {
+        "name": "social",
+        "description": "Social features endpoints"
+      }
+    ],
+    "paths": {
+      "/auth/profile": {
+        "post": {
+          "summary": "Create user profile",
+          "tags": ["auth"],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "User's display name"
+                    },
+                    "profile_image_base64": {
+                      "type": "string",
+                      "description": "Base64 encoded profile image"
+                    }
+                  },
+                  "required": ["name"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Profile created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid input",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "get": {
+          "summary": "Get user profile",
+          "tags": ["auth"],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "User profile",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "User not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/recipes": {
+        "get": {
+          "summary": "Get user's recipes",
+          "tags": ["recipes"],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Maximum number of recipes to return",
+              "schema": {
+                "type": "integer",
+                "default": 20
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Number of recipes to skip",
+              "schema": {
+                "type": "integer",
+                "default": 0
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "List of recipes",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "recipes": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Recipe"
+                        }
+                      },
+                      "pagination": {
+                        "$ref": "#/components/schemas/Pagination"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "summary": "Create a new recipe",
+          "tags": ["recipes"],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "Recipe title"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Recipe description"
+                    },
+                    "ingredients": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "List of ingredients"
+                    },
+                    "instructions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "List of instructions"
+                    },
+                    "imageBase64": {
+                      "type": "string",
+                      "description": "Base64 encoded recipe image"
+                    }
+                  },
+                  "required": ["title", "ingredients", "instructions"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Recipe created successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Recipe"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid input",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/recipes/{recipe_id}": {
+        "get": {
+          "summary": "Get a specific recipe",
+          "tags": ["recipes"],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "recipe_id",
+              "in": "path",
+              "required": true,
+              "description": "ID of the recipe to retrieve",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Recipe details",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Recipe"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Recipe not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "summary": "Update a recipe",
+          "tags": ["recipes"],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "recipe_id",
+              "in": "path",
+              "required": true,
+              "description": "ID of the recipe to update",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "description": "Recipe title"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Recipe description"
+                    },
+                    "ingredients": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "List of ingredients"
+                    },
+                    "instructions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "List of instructions"
+                    },
+                    "imageBase64": {
+                      "type": "string",
+                      "description": "Base64 encoded recipe image"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Recipe updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Recipe"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Recipe not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete a recipe",
+          "tags": ["recipes"],
+          "security": [
+            {
+              "BearerAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "recipe_id",
+              "in": "path",
+              "required": true,
+              "description": "ID of the recipe to delete",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Recipe deleted successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Recipe not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "User": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "profile_image_url": {
+              "type": "string",
+              "nullable": true
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "Recipe": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string",
+              "nullable": true
+            },
+            "ingredients": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "instructions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "imageUrl": {
+              "type": "string",
+              "nullable": true
+            },
+            "prepTime": {
+              "type": "integer",
+              "nullable": true
+            },
+            "cookTime": {
+              "type": "integer",
+              "nullable": true
+            },
+            "servings": {
+              "type": "integer",
+              "nullable": true
+            },
+            "difficulty": {
+              "type": "string",
+              "nullable": true
+            },
+            "cuisine": {
+              "type": "string",
+              "nullable": true
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "isPublic": {
+              "type": "boolean"
+            },
+            "nutrition": {
+              "type": "object",
+              "nullable": true
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "Pagination": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "integer"
+            },
+            "limit": {
+              "type": "integer"
+            },
+            "offset": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "securitySchemes": {
+        "BearerAuth": {
+          "type": "http",
+          "scheme": "bearer",
+          "bearerFormat": "JWT"
+        }
+      }
+    }
+  }
