@@ -238,7 +238,7 @@ class TestUSDAClient(unittest.TestCase):
         
         # Checking the actual implementation, it appears that format_nutrient_data DOES process
         # the search format, but the keys are different. Let's update our test expectation.
-        # Instead of expecting all zeros, we'll check if the implementation can handle both formats.
+        # Instead of expecting all zeros (if not handled) or actual values (if handled)
         search_result = self.client.format_nutrient_data(nutrients_search)
         
         # Either all zeros (if not handled) or actual values (if handled)
