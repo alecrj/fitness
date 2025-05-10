@@ -95,7 +95,13 @@ fitness-food-app/
 │   └── test_api_clients.py # API client tests
 ├── .env                    # Environment variables (development)
 ├── .env.example            # Example environment configuration
+├── Dockerfile              # Docker container configuration
+├── gunicorn_config.py      # Production WSGI server configuration
+├── Procfile                # Deployment configuration
+├── openapi.json            # API documentation (Swagger/OpenAPI)
 ├── requirements.txt        # Project dependencies
+├── manage.py               # CLI utility for managing the application
+├── run_tests.py            # Test runner utility
 └── .github/                # CI/CD workflows
     └── workflows/
         └── test.yml        # GitHub Actions test configuration
@@ -184,7 +190,7 @@ fitness-food-app/
 - `utils/monitoring.py`: Performance metrics
 - `utils/cache.py`: Response caching
 - `utils/logging.py`: Logging configuration
-- `migrations/migrate_001_add_metadata_to_users.py`: Initial database migration
+- `utils/migrations.py`: Database migration system
 
 **Features**:
 - API documentation with OpenAPI/Swagger
@@ -205,6 +211,7 @@ fitness-food-app/
 - `tests/conftest.py`: Test configuration and fixtures
 - `tests/unit/`: Unit tests for all modules
 - `tests/integration/`: Integration tests for cross-module functionality
+- `run_tests.py`: Test runner utility
 
 **Features**:
 - Comprehensive test suite for all modules
@@ -214,16 +221,25 @@ fitness-food-app/
 - Test fixtures for common objects
 - GitHub Actions CI integration
 
-### CI/CD Pipeline (COMPLETE)
+### DevOps & Infrastructure (COMPLETE)
 
 **Key Files**:
 - `.github/workflows/test.yml`: GitHub Actions workflow configuration
+- `Dockerfile`: Docker container definition
+- `gunicorn_config.py`: Production WSGI server configuration
+- `Procfile`: Deployment configuration
+- `manage.py`: CLI utility for app management
 
 **Features**:
 - Automated testing on push and pull requests
-- Python environment setup
-- Running of unit and integration tests
-- Test results artifact storage
+- Docker containerization
+- Production deployment with Gunicorn
+- Environment variable configuration
+- CLI utilities for common tasks:
+  - Running database migrations
+  - Creating backups
+  - Running tests
+  - Managing the application
 
 ## 4. Firebase Data Model
 
@@ -717,6 +733,7 @@ Key testing aspects:
 - Parametrized test cases for multiple scenarios
 - Test fixtures for reusable test data
 - Authentication simulation for protected routes testing
+- Custom test runner (`run_tests.py`) for organizing test execution
 
 ## 8. Development Status
 
@@ -731,6 +748,15 @@ Key testing aspects:
 - ✅ Comprehensive test suite (unit & integration)
 - ✅ GitHub Actions CI pipeline
 - ✅ API documentation with Swagger/OpenAPI
+- ✅ Background task processing
+- ✅ Performance monitoring and metrics
+- ✅ Health check endpoints
+- ✅ Error handling middleware
+- ✅ Rate limiting
+- ✅ Logging system
+- ✅ Database migrations framework
+- ✅ Docker & Gunicorn deployment configuration
+- ✅ CLI utility for management tasks
 
 ### In Progress:
 - 🔄 Frontend development with React
@@ -743,6 +769,8 @@ Key testing aspects:
 - ⏳ Frontend for social module
 - ⏳ Mobile-responsive design
 - ⏳ Frontend testing
+- ⏳ User onboarding flow optimization
+- ⏳ Analytics and reporting dashboards
 
 ## 9. Development Process
 
@@ -780,7 +808,7 @@ python app.py
 ### Production Deployment:
 ```bash
 # Run with Gunicorn
-gunicorn --bind 0.0.0.0:5000 --workers 4 "app:create_app()"
+gunicorn --config gunicorn_config.py app:create_app()
 ```
 
 ### Docker Deployment:
@@ -794,15 +822,48 @@ docker run -p 5000:5000 fitness-food-app
 
 ## 11. External Dependencies
 
-- **Flask**: Web framework
-- **Firebase Admin SDK**: Firebase integration
-- **Recipe Scrapers**: Recipe import from websites
+- **Firebase Admin SDK**: Firebase integration for authentication, database, and storage
+- **Flask**: Web framework for the API
+- **Flask-CORS**: Cross-origin resource sharing support
+- **recipe-scrapers**: Recipe import from supported websites
+- **BeautifulSoup4**: HTML parsing for recipe imports from unsupported sites
 - **Requests**: HTTP client for API integrations
-- **PyJWT**: JWT token handling
-- **Beautiful Soup**: HTML parsing for recipe imports
-- **pytest**: Testing framework
+- **PyJWT**: JWT token handling for authentication
+- **apispec**: OpenAPI/Swagger documentation generation
+- **flask-swagger-ui**: Interactive API documentation UI
+- **gunicorn**: Production WSGI HTTP server
+- **python-dotenv**: Environment variable loading
+- **psutil**: System resource monitoring
+- **redis**: Redis client for rate limiting (optional)
 
-## 12. Next Steps and Roadmap
+## 12. Management Commands
+
+The application includes a CLI utility (`manage.py`) for common maintenance tasks:
+
+```bash
+# Run tests
+python manage.py test
+
+# Run database migrations
+python manage.py migrate
+
+# Create a new migration
+python manage.py create-migration 002 add_user_preferences
+
+# Backup database
+python manage.py backup
+
+# Restore database from backup
+python manage.py restore backup_file.json
+
+# Clean up old data
+python manage.py cleanup --days 30 --tasks
+
+# Run development server
+python manage.py runserver
+```
+
+## 13. Next Steps and Roadmap
 
 ### Immediate Focus (Next 2 Weeks):
 1. Complete React frontend for authentication module
@@ -822,20 +883,13 @@ docker run -p 5000:5000 fitness-food-app
 4. Enhanced personalization
 5. Advanced analytics dashboard
 
-## 13. Known Issues & Limitations
+## 14. Known Issues & Limitations
 
 - Barcode lookup API integration is incomplete (placeholder implementation)
 - Limited nutrition database without complete micronutrients
 - Recipe import doesn't handle all possible website formats
 - No export functionality for data
 - Limited offline capabilities
-
-## 14. Training & Documentation Resources
-
-- API documentation available at `/api/docs` endpoint
-- Development setup instructions in README.md
-- Codebase docstrings for key functions and classes
-- Test cases demonstrate expected behavior
 
 ---
 
