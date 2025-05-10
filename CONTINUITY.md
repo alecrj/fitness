@@ -9,7 +9,7 @@ This document serves as the authoritative reference for the Fitness & Food App p
 - **Tech Stack**:
   - **Backend**: Flask (Python), Firebase (Firestore, Authentication, Storage)
   - **APIs**: USDA Food Data Central API, recipe scrapers
-  - **Frontend**: React (in progress)
+  - **Frontend**: React with TailwindCSS
 - **Current Development Phase**: Backend completed, Frontend in progress
 - **Current Git Branch**: main
 
@@ -17,32 +17,54 @@ This document serves as the authoritative reference for the Fitness & Food App p
 
 ### System Architecture Overview
 
-The application follows a modular Flask blueprint architecture with Firebase integration:
+The application follows a modular architecture with a Flask backend and React frontend, both integrated with Firebase:
 
 ```
-                                  ┌─────────────────┐
-                                  │   Flask App     │
-                                  └────────┬────────┘
-                   ┌───────────────────────┼───────────────────────┐
-       ┌───────────┴───────────┐ ┌─────────┴─────────┐ ┌───────────┴───────────┐
-       │     Auth Module       │ │    Recipe Module   │ │   Nutrition Module    │
-       └───────────┬───────────┘ └─────────┬─────────┘ └───────────┬───────────┘
-       ┌───────────┴───────────┐           │           ┌───────────┴───────────┐
-       │    Social Module      │           │           │     Utils Module      │
-       └───────────┬───────────┘           │           └───────────┬───────────┘
-                   │                       │                       │
-                   └───────────────────────┼───────────────────────┘
-                                  ┌────────┴────────┐
-                                  │  Firebase API   │
-                                  └────────┬────────┘
-        ┌──────────────────────────────────┼──────────────────────────────────┐
-        │                                  │                                  │
-┌───────┴────────┐              ┌──────────┴───────────┐            ┌─────────┴─────────┐
-│  Authentication│              │      Firestore       │            │       Storage      │
-└────────────────┘              └──────────────────────┘            └───────────────────┘
+                    ┌───────────────────────────────────────────┐
+                    │                                           │
+                    │              User's Browser               │
+                    │                                           │
+                    └───────────────────────┬───────────────────┘
+                                            │
+                                            ▼
+                    ┌───────────────────────────────────────────┐
+                    │                                           │
+                    │            React Frontend                 │
+                    │                                           │
+                    └───────────────────────┬───────────────────┘
+                                            │
+                                            ▼
+                    ┌───────────────────────────────────────────┐
+                    │               REST API                    │
+                    └───────────────────────┬───────────────────┘
+                                            │
+                                            ▼
+                    ┌─────────────────┐     │
+                    │   Flask App     │     │
+                    └────────┬────────┘     │
+        ┌───────────────────┼───────────────┴─────┐
+        │                   │                     │
+┌───────┴───────┐   ┌───────┴───────┐    ┌────────┴───────┐
+│ Auth Module   │   │ Recipe Module │    │Nutrition Module│
+└───────┬───────┘   └───────┬───────┘    └────────┬───────┘
+        │                   │                     │
+┌───────┴───────┐           │            ┌────────┴───────┐
+│ Social Module │           │            │  Utils Module  │
+└───────┬───────┘           │            └────────┬───────┘
+        │                   │                     │
+        └───────────────────┼─────────────────────┘
+                            ▼
+                   ┌────────┴────────┐
+                   │  Firebase API   │
+                   └────────┬────────┘
+        ┌─────────────────────────────────────────┐
+        │                   │                     │
+┌───────┴────────┐ ┌────────┴────────┐   ┌────────┴────────┐
+│ Authentication │ │   Firestore     │   │     Storage     │
+└────────────────┘ └─────────────────┘   └─────────────────┘
 ```
 
-### Project Directory Structure
+### Backend Directory Structure
 
 ```
 fitness-food-app/
@@ -105,6 +127,41 @@ fitness-food-app/
 └── .github/                # CI/CD workflows
     └── workflows/
         └── test.yml        # GitHub Actions test configuration
+```
+
+### Frontend Architecture
+
+The React frontend follows a component-based architecture:
+
+```
+frontend/
+├── public/                # Static files
+└── src/
+    ├── api/              # API client and service functions
+    │   ├── auth/         # Authentication API
+    │   ├── recipes/      # Recipe API
+    │   ├── nutrition/    # Nutrition API
+    │   └── social/       # Social API
+    ├── assets/           # Static assets
+    │   ├── images/       # Image files
+    │   └── styles/       # CSS files
+    ├── components/       # Reusable UI components
+    │   ├── common/       # General UI components
+    │   ├── layouts/      # Page layouts
+    │   ├── navigation/   # Navigation components
+    │   ├── recipes/      # Recipe-specific components
+    │   ├── nutrition/    # Nutrition-specific components
+    │   └── social/       # Social-specific components
+    ├── contexts/         # React context providers
+    │   ├── AuthContext   # Authentication state
+    │   └── AppContext    # Application state
+    ├── hooks/            # Custom React hooks
+    ├── pages/            # Page components
+    │   ├── auth/         # Authentication pages
+    │   ├── recipes/      # Recipe pages
+    │   ├── nutrition/    # Nutrition pages
+    │   └── social/       # Social pages
+    └── utils/            # Utility functions
 ```
 
 ## 3. Core Project Components
@@ -762,8 +819,18 @@ Key testing aspects:
 - 🔄 Frontend development with React
 - 🔄 Production deployment configuration
 
-### Upcoming Work:
-- ⏳ Frontend for authentication module
+### Completed Frontend Components:
+- ✅ Frontend project structure setup
+- ✅ React application with TailwindCSS configuration
+- ✅ Basic authentication flow (login screen)
+- ✅ AuthContext for Firebase integration
+- ✅ AppContext for application state management
+- ✅ API client with token handling
+- ✅ Common UI components (Layout, Navbar, Notifications)
+- ✅ Authentication page layouts
+
+### Upcoming Frontend Work:
+- ⏳ Complete authentication module functionality
 - ⏳ Frontend for recipe module 
 - ⏳ Frontend for nutrition module
 - ⏳ Frontend for social module
@@ -780,13 +847,17 @@ Key testing aspects:
 - **API Design**: RESTful principles with consistent endpoint patterns
 - **Error Handling**: Standardized error formats across all endpoints
 - **Input Validation**: Comprehensive validation for all input data
+- **Frontend Development**: Component-based architecture with React and TailwindCSS
 
 ### Best Practices
-- Modular design with Flask blueprints
+- Modular design with Flask blueprints (backend)
 - Clear separation of concerns (routes, models, services)
 - Consistent error handling and response formats
 - Comprehensive documentation
 - Test-driven development (TDD) approach
+- Component reusability and standardized UI patterns
+- Context providers for global state management
+- Custom hooks for shared functionality
 
 ## 10. Deployment Options
 
@@ -835,6 +906,14 @@ docker run -p 5000:5000 fitness-food-app
 - **python-dotenv**: Environment variable loading
 - **psutil**: System resource monitoring
 - **redis**: Redis client for rate limiting (optional)
+
+### Frontend Dependencies
+- **React**: Frontend UI library
+- **React Router**: Navigation and routing
+- **TailwindCSS**: Utility-first CSS framework
+- **Formik & Yup**: Form handling and validation
+- **Axios**: HTTP client for API requests
+- **Firebase**: Authentication and storage
 
 ## 12. Management Commands
 
@@ -890,6 +969,28 @@ python manage.py runserver
 - Recipe import doesn't handle all possible website formats
 - No export functionality for data
 - Limited offline capabilities
+- Frontend Firebase configuration needs to be populated with real values
+
+## 15. Frontend Development Status
+
+The frontend development is in progress with the following components already in place:
+
+- **Project Structure**: Complete directory structure for a React application
+- **UI Framework**: TailwindCSS for styling with custom component classes
+- **Authentication**: Basic login screen, context provider for Firebase Auth
+- **State Management**: Context providers for application state
+- **API Integration**: API client with token handling and request/response interceptors
+- **UI Components**: Core reusable components for consistent UI patterns
+- **Responsive Design**: Mobile-first approach with responsive design patterns
+
+### Next Frontend Steps
+
+1. Complete the authentication flows (registration, profile management)
+2. Implement recipe listing and management pages
+3. Implement nutrition tracking and meal logging pages
+4. Implement social feed and interaction pages
+5. Add comprehensive testing for frontend components
+6. Optimize for production deployment
 
 ---
 
