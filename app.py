@@ -19,7 +19,7 @@ bucket = storage.bucket()
 
 # Now set up Flask and blueprints
 from flask import Flask, jsonify, request, g
-from flask_cors import CORS
+from flask_cors import CORS  # Add CORS import
 import uuid
 import os
 
@@ -42,7 +42,16 @@ def create_app():
     """Create and configure the Flask application"""
     app = Flask(__name__)
     app.config.from_object(Config)
-    CORS(app)
+    
+    # Enable CORS for the frontend application
+    # Allow all origins in development, restrict in production
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": Config.CORS_ORIGINS if hasattr(Config, 'CORS_ORIGINS') else "*",
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Authorization", "Content-Type"]
+        }
+    })
 
     # Store start time in app context
     app.config['start_time'] = APP_START_TIME
