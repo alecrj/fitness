@@ -2,7 +2,6 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
-    UserCredential,
     updateProfile,
     sendPasswordResetEmail,
   } from 'firebase/auth';
@@ -17,47 +16,49 @@ import {
     profile_image_url?: string;
   }
   
-  // Auth service
-  export const authService = {
-    // Register user
-    async register(email: string, password: string, name: string): Promise<UserCredential> {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  // Auth service functions
+  export const register = async (email: string, password: string, name: string) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    if (userCredential.user) {
+      await updateProfile(userCredential.user, {
+        displayName: name,
+      });
       
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, {
-          displayName: name,
-        });
-        
-        await this.createUserProfile({
-          name,
-          email,
-        });
-      }
-      
-      return userCredential;
-    },
+      await createUserProfile({
+        name,
+        email,
+      });
+    }
     
-    // Login user
-    async login(email: string, password: string): Promise<UserCredential> {
-      return signInWithEmailAndPassword(auth, email, password);
-    },
-    
-    // Logout user
-    async logout(): Promise<void> {
-      return signOut(auth);
-    },
-    
-    // Create profile in backend
-    async createUserProfile(profile: UserProfile): Promise<UserProfile> {
-      const response = await apiClient.post('/auth/profile', profile);
-      return response.data;
-    },
-    
-    // Get current user profile
-    async getCurrentUserProfile(): Promise<UserProfile> {
-      const response = await apiClient.get('/auth/profile');
-      return response.data;
-    },
+    return userCredential;
+  };
+  
+  export const login = async (email: string, password: string) => {
+    return signInWithEmailAndPassword(auth, email, password);
+  };
+  
+  export const logout = async () => {
+    return signOut(auth);
+  };
+  
+  export const createUserProfile = async (profile: UserProfile) => {
+    const response = await apiClient.post('/auth/profile', profile);
+    return response.data;
+  };
+  
+  export const getCurrentUserProfile = async () => {
+    const response = await apiClient.get('/auth/profile');
+    return response.data;
+  };
+  
+  // Export all functions as a service object as well
+  const authService = {
+    register,
+    login,
+    logout,
+    createUserProfile,
+    getCurrentUserProfile
   };
   
   export default authService;

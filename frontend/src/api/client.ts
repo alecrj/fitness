@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { auth } from '../config/firebase';
 
-// Base API client
+// Create axios instance
 const apiClient = axios.create({
   baseURL: process.env.REACT_APP_API_BASE_URL,
   headers: {
@@ -16,13 +16,9 @@ apiClient.interceptors.request.use(
       const currentUser = auth.currentUser;
       if (currentUser) {
         const token = await currentUser.getIdToken();
-        if (config.headers) {
-          config.headers['Authorization'] = `Bearer ${token}`;
-        } else {
-          config.headers = {
-            'Authorization': `Bearer ${token}`
-          };
-        }
+        // Fix for AxiosRequestHeaders type error
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
       console.error('Error getting auth token:', error);
