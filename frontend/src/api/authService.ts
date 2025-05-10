@@ -1,64 +1,125 @@
-import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
-    updateProfile,
+import { 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    signOut, 
     sendPasswordResetEmail,
+    updateProfile,
+    sendEmailVerification,
+    User
   } from 'firebase/auth';
   import { auth } from '../config/firebase';
-  import apiClient from './client';
+  import { client } from './client';
+  import { UserProfile } from '../types/user';
   
-  // User profile interface
-  export interface UserProfile {
-    id?: string;
-    name: string;
-    email: string;
-    profile_image_url?: string;
+  export interface AuthResponse {
+    user: User;
+    token: string;
   }
   
-  // Auth service functions
-  export const register = async (email: string, password: string, name: string) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  export const authService = {
+    // Register a new user
+    async register(email: string, password: string, name: string): Promise<AuthResponse> {
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Update the user's display name
+        await updateProfile(user, { displayName: name });
+        
+        // Send email verification
+        await sendEmailVerification(user);
+        
+        const token = await user.getIdToken();
+        
+        // Create user profile on the backend
+        await client.post('/auth/profile', { name });
+        
+        return { user, token };
+      } catch (error) {
+        console.error('Registration error:', error);
+        throw error;
+      }
+    },
     
-    if (userCredential.user) {
-      await updateProfile(userCredential.user, {
-        displayName: name,
-      });
-      
-      await createUserProfile({
-        name,
-        email,
-      });
+    // Login user
+    async login(email: string, password: string): Promise<AuthResponse> {
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        const token = await user.getIdToken();
+        
+        return { user, token };
+      } catch (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
+    },
+    
+    // Logout user
+    async logout(): Promise<void> {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error('Logout error:', error);
+        throw error;
+      }
+    },
+    
+    // Reset password
+    async resetPassword(email: string): Promise<void> {
+      try {
+        await sendPasswordResetEmail(auth, email, {
+          url: window.location.origin + '/login',
+        });
+      } catch (error) {
+        console.error('Reset password error:', error);
+        throw error;
+      }
+    },
+    
+    // Get current authenticated user
+    getCurrentUser(): User | null {
+      return auth.currentUser;
+    },
+    
+    // Get profile
+    async getProfile(): Promise<UserProfile> {
+      try {
+        const response = await client.get('/auth/profile');
+        return response.data;
+      } catch (error) {
+        console.error('Get profile error:', error);
+        throw error;
+      }
+    },
+    
+    // Update profile
+    async updateProfile(data: Partial<UserProfile>): Promise<UserProfile> {
+      try {
+        const response = await client.post('/auth/profile', data);
+        return response.data;
+      } catch (error) {
+        console.error('Update profile error:', error);
+        throw error;
+      }
+    },
+    
+    // Upload profile image
+    async uploadProfileImage(imageFile: File): Promise<UserProfile> {
+      try {
+        const formData = new FormData();
+        formData.append('profile_image', imageFile);
+        
+        const response = await client.post('/auth/profile/image', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        return response.data;
+      } catch (error) {
+        console.error('Upload profile image error:', error);
+        throw error;
+      }
     }
-    
-    return userCredential;
   };
-  
-  export const login = async (email: string, password: string) => {
-    return signInWithEmailAndPassword(auth, email, password);
-  };
-  
-  export const logout = async () => {
-    return signOut(auth);
-  };
-  
-  export const createUserProfile = async (profile: UserProfile) => {
-    const response = await apiClient.post('/auth/profile', profile);
-    return response.data;
-  };
-  
-  export const getCurrentUserProfile = async () => {
-    const response = await apiClient.get('/auth/profile');
-    return response.data;
-  };
-  
-  // Export all functions as a service object as well
-  const authService = {
-    register,
-    login,
-    logout,
-    createUserProfile,
-    getCurrentUserProfile
-  };
-  
-  export default authService;

@@ -1,28 +1,25 @@
 import axios from 'axios';
 import { auth } from '../config/firebase';
 
-// Create axios instance
-const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL,
+// Create an axios instance for the API
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+export const client = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add token to requests
-apiClient.interceptors.request.use(
+// Request interceptor for adding auth token
+client.interceptors.request.use(
   async (config) => {
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const token = await currentUser.getIdToken();
-        // Fix for AxiosRequestHeaders type error
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.error('Error getting auth token:', error);
+    const user = auth.currentUser;
+    
+    if (user) {
+      const token = await user.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => {
@@ -30,30 +27,35 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Handle responses
-apiClient.interceptors.response.use(
+// Response interceptor for handling common error cases
+client.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error) => {
-    if (error.response) {
-      const status = error.response.status;
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // If error is 401 Unauthorized and we haven't tried refreshing the token yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
       
-      if (status === 401) {
-        console.log('Session expired. Please sign in again.');
-      } else if (status === 403) {
-        console.log('You do not have permission to access this resource.');
-      } else if (status === 500) {
-        console.log('A server error occurred. Please try again later.');
+      try {
+        // Get a fresh token
+        const user = auth.currentUser;
+        if (user) {
+          const token = await user.getIdToken(true); // Force token refresh
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return client(originalRequest);
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing auth token:', refreshError);
+        // Force logout if we can't refresh the token
+        auth.signOut().catch(console.error);
       }
-    } else if (error.request) {
-      console.log('Network error. Please check your connection.');
-    } else {
-      console.log('An error occurred. Please try again.');
     }
     
     return Promise.reject(error);
   }
 );
 
-export default apiClient;
+export default client;
