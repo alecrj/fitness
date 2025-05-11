@@ -1,5 +1,9 @@
+// Auth types for the application
 import { UserProfile } from './user';
 
+/**
+ * Represents a user in the auth system
+ */
 export interface AuthUser {
   uid: string;
   email: string | null;
@@ -8,12 +12,33 @@ export interface AuthUser {
   emailVerified: boolean;
 }
 
-export interface LoginFormData {
-  email: string;
-  password: string;
-  rememberMe?: boolean;
+/**
+ * Auth context type for the application
+ */
+export interface AuthContextType {
+  currentUser: AuthUser | null;
+  userProfile: UserProfile | null;
+  loading: boolean;
+  error: string;
+  
+  // Authentication methods
+  register: (email: string, password: string, name: string) => Promise<AuthUser>;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  logout: () => Promise<void>; // This should match the method name in your AuthContext
+  resetPassword: (email: string) => Promise<void>;
+  
+  // Profile methods
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+  fetchUserProfile: () => Promise<UserProfile | null>;
+  
+  // Onboarding methods
+  hasCompletedOnboarding: () => boolean;
+  completeOnboarding: () => Promise<void>;
 }
 
+/**
+ * User registration data
+ */
 export interface RegisterFormData {
   name: string;
   email: string;
@@ -21,26 +46,18 @@ export interface RegisterFormData {
   confirmPassword: string;
 }
 
-export interface ResetPasswordFormData {
+/**
+ * Login form data
+ */
+export interface LoginFormData {
   email: string;
-}
-
-export interface NewPasswordFormData {
   password: string;
-  confirmPassword: string;
+  rememberMe?: boolean;
 }
 
-export interface AuthContextType {
-  currentUser: AuthUser | null;
-  userProfile: UserProfile | null;
-  loading: boolean;
-  error: string;
-  login: (email: string, password: string) => Promise<AuthUser>;
-  register: (email: string, password: string, name: string) => Promise<AuthUser>;
-  logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
-  fetchUserProfile: () => Promise<UserProfile | null>;
-  hasCompletedOnboarding: () => boolean;
-  completeOnboarding: () => Promise<void>;
+/**
+ * Password reset form data
+ */
+export interface PasswordResetFormData {
+  email: string;
 }
