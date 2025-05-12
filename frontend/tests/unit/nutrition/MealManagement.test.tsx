@@ -10,7 +10,8 @@ const MockMeals: React.FC = () => {
   const [mealTypeFilter, setMealTypeFilter] = React.useState('');
 
   const filteredMeals = meals.filter(meal => {
-    if (dateFilter && meal.meal_time.split('T')[0] !== dateFilter) return false;
+    // Fixed: Convert Date object to string first, then split
+    if (dateFilter && meal.meal_time.toISOString().split('T')[0] !== dateFilter) return false;
     if (mealTypeFilter && meal.meal_type !== mealTypeFilter) return false;
     return true;
   });

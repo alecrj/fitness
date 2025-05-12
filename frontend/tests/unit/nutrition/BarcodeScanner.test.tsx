@@ -2,7 +2,14 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '../../test-utils';
 import { mockFoodItems } from '../../test-utils';
-import type { BarcodeScannerProps, FoodItem } from '../../__mocks__/barcodeScannerTypes';
+// Updated import to use the actual types from the src folder instead of mocks
+import type { FoodItem } from '../../../src/types/nutrition';
+
+// Define BarcodeScannerProps locally since we're mocking the component
+interface BarcodeScannerProps {
+  onFoodFound: (food: FoodItem) => void;
+  className?: string;
+}
 
 // Mock the camera functionality
 jest.mock('react-webcam', () => {

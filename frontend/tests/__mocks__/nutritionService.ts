@@ -1,5 +1,5 @@
 // tests/__mocks__/nutritionService.ts
-import { mockFoodItems, mockMeals, mockUsdaSearchResults } from '../test-utils';
+import { mockFoodItems, mockMeals, mockUSDASearchResults } from '../test-utils';
 
 export const getFoodItems = jest.fn().mockResolvedValue({ 
   data: { items: mockFoodItems, total: mockFoodItems.length } 
@@ -23,9 +23,9 @@ export const toggleFavorite = jest.fn().mockImplementation((id: string) =>
   Promise.resolve({ data: { success: true, is_favorite: true } })
 );
 
-export const searchUsda = jest.fn().mockResolvedValue({ data: mockUsdaSearchResults });
+export const searchUsda = jest.fn().mockResolvedValue({ data: mockUSDASearchResults });
 
-export const getUsdaDetails = jest.fn().mockResolvedValue({ data: mockUsdaSearchResults.foods[0] });
+export const getUsdaDetails = jest.fn().mockResolvedValue({ data: mockUSDASearchResults.foods[0] });
 
 export const importUsdaFood = jest.fn().mockResolvedValue({ data: mockFoodItems[0] });
 

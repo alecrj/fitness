@@ -1,7 +1,7 @@
 // tests/unit/nutrition/USDASearch.test.tsx
 import * as React from 'react';
 import { render, screen, fireEvent, waitFor } from '../../test-utils';
-import { mockUsdaSearchResults } from '../../test-utils';
+import { mockUSDASearchResults } from '../../test-utils';
 
 // Mock the actual USDASearch component
 const MockUSDASearch: React.FC = () => {
@@ -20,7 +20,7 @@ const MockUSDASearch: React.FC = () => {
     // Simulate API call
     setTimeout(() => {
       if (query === 'banana') {
-        setResults(mockUsdaSearchResults.foods);
+        setResults(mockUSDASearchResults.foods);
       } else if (query === 'error') {
         setError('Search failed');
         setResults([]);
