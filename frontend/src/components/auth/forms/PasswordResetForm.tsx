@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { ResetPasswordFormData } from '../../../types/auth';
+import { PasswordResetFormData } from '../../../types/auth';
 
 export const PasswordResetForm: React.FC = () => {
   const { resetPassword } = useAuth();
   
-  const [formData, setFormData] = useState<ResetPasswordFormData>({
+  const [formData, setFormData] = useState<PasswordResetFormData>({
     email: ''
   });
   const [loading, setLoading] = useState(false);
