@@ -24,7 +24,7 @@ export interface AuthContextType {
   // Authentication methods
   register: (email: string, password: string, name: string) => Promise<AuthUser>;
   login: (email: string, password: string) => Promise<AuthUser>;
-  logout: () => Promise<void>; // This should match the method name in your AuthContext
+  logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   
   // Profile methods
@@ -60,4 +60,12 @@ export interface LoginFormData {
  */
 export interface PasswordResetFormData {
   email: string;
+}
+
+/**
+ * ADDED: Reset password form data (missing type)
+ */
+export interface ResetPasswordFormData {
+  password: string;
+  confirmPassword: string;
 }

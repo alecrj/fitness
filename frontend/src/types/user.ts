@@ -20,3 +20,12 @@ export interface UserProfile {
  * Partial user profile for updates
  */
 export type PartialUserProfile = Partial<UserProfile>;
+
+/**
+ * ADDED: Profile form data (missing type)
+ */
+export interface ProfileFormData {
+  name: string;
+  profileImage?: File;
+  email?: string; // Usually read-only
+}
