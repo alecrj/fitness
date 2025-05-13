@@ -4,8 +4,6 @@ import { getStorage, connectStorageEmulator, FirebaseStorage } from 'firebase/st
 import { getAuth, connectAuthEmulator, Auth } from 'firebase/auth';
 
 // Enhanced Firebase configuration with extensive debugging
-// This version will help diagnose the exact authentication issues
-
 console.log('=== Firebase Configuration Debug ===');
 console.log('Environment:', process.env.NODE_ENV);
 console.log('Current URL:', window.location.href);
@@ -34,15 +32,13 @@ const envVars: FirebaseConfig = {
 
 console.log('Environment Variables:', envVars);
 
-// Option 1: Use environment variables if all are present
-let useEnvVars = Object.values(envVars).every(value => value && value.trim() !== '');
-
+// Check if environment variables are properly loaded
+const useEnvVars = Object.values(envVars).every(value => value && value.trim() !== '');
 console.log('Using environment variables:', useEnvVars);
 
-// Option 2: Fallback to hard-coded values for debugging
-// Updated with your actual Firebase project values
+// Hard-coded configuration as fallback with your actual Firebase project values
 const hardCodedConfig: FirebaseConfig = {
-  apiKey: "AI2aSyB_d8xpQL94ZWMxx5WyqOi_JypKS7xjA78",
+  apiKey: "AIzaSyB_d8xpQL94ZWMxx5WyqOi_JypKS7xjA78",
   authDomain: "fitness-food-app-9d41d.firebaseapp.com",
   projectId: "fitness-food-app-9d41d",
   storageBucket: "fitness-food-app-9d41d.firebasestorage.app",
@@ -70,72 +66,49 @@ if (missingFields.length > 0) {
 
 console.log('=== Initializing Firebase ===');
 
-// Initialize Firebase with error handling and explicit typing
-let firebaseApp: FirebaseApp;
-try {
-  firebaseApp = initializeApp(firebaseConfig);
-  console.log('Firebase app initialized successfully');
-} catch (error) {
-  console.error('Firebase initialization error:', error);
-  throw error;
-}
+// Initialize Firebase with error handling
+const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
+console.log('Firebase app initialized successfully');
 
-// Initialize services with error handling and explicit typing
+// Initialize services with error handling
 console.log('=== Initializing Firebase Services ===');
 
-let db: Firestore | undefined;
-let storage: FirebaseStorage | undefined;
-let auth: Auth | undefined;
+const db: Firestore = getFirestore(firebaseApp);
+console.log('Firestore initialized successfully');
 
-try {
-  db = getFirestore(firebaseApp);
-  console.log('Firestore initialized successfully');
-} catch (error) {
-  console.error('Firestore initialization error:', error);
-}
+const storage: FirebaseStorage = getStorage(firebaseApp);
+console.log('Storage initialized successfully');
 
-try {
-  storage = getStorage(firebaseApp);
-  console.log('Storage initialized successfully');
-} catch (error) {
-  console.error('Storage initialization error:', error);
-}
+const auth: Auth = getAuth(firebaseApp);
+console.log('Auth initialized successfully');
 
-try {
-  auth = getAuth(firebaseApp);
-  console.log('Auth initialized successfully');
-  
-  // Add auth state change listener for debugging
-  auth.onAuthStateChanged((user) => {
-    console.log('=== Auth State Changed ===');
-    if (user) {
-      console.log('User logged in:', {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        emailVerified: user.emailVerified
-      });
-    } else {
-      console.log('User logged out');
+// Add auth state change listener for debugging
+auth.onAuthStateChanged((user) => {
+  console.log('=== Auth State Changed ===');
+  if (user) {
+    console.log('User logged in:', {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      emailVerified: user.emailVerified
+    });
+  } else {
+    console.log('User logged out');
+  }
+});
+
+// Add token refresh listener
+auth.onIdTokenChanged(async (user) => {
+  console.log('=== Token Changed ===');
+  if (user) {
+    try {
+      const token = await user.getIdToken();
+      console.log('New token obtained:', token.substring(0, 20) + '...');
+    } catch (error) {
+      console.error('Error getting token:', error);
     }
-  });
-  
-  // Add token refresh listener
-  auth.onIdTokenChanged(async (user) => {
-    console.log('=== Token Changed ===');
-    if (user) {
-      try {
-        const token = await user.getIdToken();
-        console.log('New token obtained:', token.substring(0, 20) + '...');
-      } catch (error) {
-        console.error('Error getting token:', error);
-      }
-    }
-  });
-  
-} catch (error) {
-  console.error('Auth initialization error:', error);
-}
+  }
+});
 
 // Add global error handler for Firebase operations
 window.addEventListener('unhandledrejection', (event) => {
@@ -146,32 +119,23 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
-// Export with debug logging and proper types
+// Export with debug logging
 console.log('=== Exporting Firebase Instances ===');
 console.log('App:', !!firebaseApp);
 console.log('DB:', !!db);
 console.log('Storage:', !!storage);
 console.log('Auth:', !!auth);
 
-// Ensure auth is defined before exporting
-if (!auth) {
-  throw new Error('Firebase Auth initialization failed');
-}
-
-// Export with explicit types to ensure TypeScript compatibility
-export { firebaseApp };
-export { db };
-export { storage };
-export { auth };
+// Export all Firebase instances (no longer optional)
+export { firebaseApp, db, storage, auth };
 export default firebaseApp;
 
-// Additional debug helpers with explicit typing
+// Debug helpers
 export const debugFirebase = {
   // Test API key validity
   async testApiKey(): Promise<boolean> {
     console.log('=== Testing API Key ===');
     try {
-      // Make a simple request to test the API key
       const response = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${firebaseConfig.projectId}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -221,7 +185,7 @@ export const debugFirebase = {
   },
   
   // Get current configuration
-  getConfig(): FirebaseConfig {
+  getConfig(): Partial<FirebaseConfig> {
     return {
       ...firebaseConfig,
       apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : 'MISSING'

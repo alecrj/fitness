@@ -1,0 +1,76 @@
+src/api/authService.ts(50,37): error TS18048: 'auth' is possibly 'undefined'.
+src/api/authService.ts(51,28): error TS18048: 'auth' is possibly 'undefined'.
+src/api/authService.ts(61,75): error TS18048: 'auth' is possibly 'undefined'.
+src/api/authService.ts(98,83): error TS2345: Argument of type 'Auth | undefined' is not assignable to parameter of type 'Auth'.
+  Type 'undefined' is not assignable to type 'Auth'.
+src/api/authService.ts(149,79): error TS2345: Argument of type 'Auth | undefined' is not assignable to parameter of type 'Auth'.
+  Type 'undefined' is not assignable to type 'Auth'.
+src/api/authService.ts(171,21): error TS2345: Argument of type 'Auth | undefined' is not assignable to parameter of type 'Auth'.
+  Type 'undefined' is not assignable to type 'Auth'.
+src/api/authService.ts(192,36): error TS2345: Argument of type 'Auth | undefined' is not assignable to parameter of type 'Auth'.
+  Type 'undefined' is not assignable to type 'Auth'.
+src/api/authService.ts(204,18): error TS18048: 'auth' is possibly 'undefined'.
+src/api/authService.ts(261,34): error TS18048: 'auth' is possibly 'undefined'.
+src/api/authService.ts(262,33): error TS18048: 'auth' is possibly 'undefined'.
+src/api/authService.ts(264,9): error TS18048: 'auth' is possibly 'undefined'.
+src/api/authService.ts(266,29): error TS18048: 'auth' is possibly 'undefined'.
+src/api/client.ts(16,18): error TS18048: 'auth' is possibly 'undefined'.
+src/api/client.ts(44,22): error TS18048: 'auth' is possibly 'undefined'.
+src/api/client.ts(53,9): error TS18048: 'auth' is possibly 'undefined'.
+src/components/debug/FirebaseDebugPanel.tsx(2,22): error TS2307: Cannot find module '../config/firebase' or its corresponding type declarations.
+src/components/debug/FirebaseDebugPanel.tsx(3,31): error TS2307: Cannot find module '../config/firebase' or its corresponding type declarations.
+src/components/debug/FirebaseDebugPanel.tsx(4,29): error TS2307: Cannot find module '../api/authService' or its corresponding type declarations.
+src/components/debug/FirebaseDebugPanel.tsx(148,30): error TS2339: Property 'getUserMedia' does not exist on type 'Navigator'.
+src/config/firebase.ts(74,5): error TS2323: Cannot redeclare exported variable 'firebaseApp'.
+src/config/firebase.ts(86,5): error TS2323: Cannot redeclare exported variable 'db'.
+src/config/firebase.ts(87,5): error TS2323: Cannot redeclare exported variable 'storage'.
+src/config/firebase.ts(88,5): error TS2323: Cannot redeclare exported variable 'auth'.
+src/config/firebase.ts(166,16): error TS2300: Duplicate identifier 'defaultExport'.
+src/config/firebase.ts(169,14): error TS2451: Cannot redeclare block-scoped variable 'debugFirebase'.
+src/contexts/AuthContext.tsx(62,24): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(firestore: Firestore, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'Firestore'.
+      Type 'undefined' is not assignable to type 'Firestore'.
+  Overload 2 of 3, '(reference: CollectionReference<unknown, DocumentData>, path?: string | undefined, ...pathSegments: string[]): DocumentReference<unknown, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'CollectionReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'CollectionReference<unknown, DocumentData>'.
+  Overload 3 of 3, '(reference: DocumentReference<unknown, DocumentData>, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'DocumentReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'DocumentReference<unknown, DocumentData>'.
+src/contexts/AuthContext.tsx(128,30): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(firestore: Firestore, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'Firestore'.
+      Type 'undefined' is not assignable to type 'Firestore'.
+  Overload 2 of 3, '(reference: CollectionReference<unknown, DocumentData>, path?: string | undefined, ...pathSegments: string[]): DocumentReference<unknown, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'CollectionReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'CollectionReference<unknown, DocumentData>'.
+  Overload 3 of 3, '(reference: DocumentReference<unknown, DocumentData>, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'DocumentReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'DocumentReference<unknown, DocumentData>'.
+src/contexts/AuthContext.tsx(133,32): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(storage: FirebaseStorage, url?: string | undefined): StorageReference', gave the following error.
+    Argument of type 'FirebaseStorage | undefined' is not assignable to parameter of type 'FirebaseStorage'.
+      Type 'undefined' is not assignable to type 'FirebaseStorage'.
+  Overload 2 of 2, '(storageOrRef: FirebaseStorage | StorageReference, path?: string | undefined): StorageReference', gave the following error.
+    Argument of type 'FirebaseStorage | undefined' is not assignable to parameter of type 'FirebaseStorage | StorageReference'.
+      Type 'undefined' is not assignable to type 'FirebaseStorage | StorageReference'.
+src/contexts/AuthContext.tsx(169,30): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(firestore: Firestore, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'Firestore'.
+      Type 'undefined' is not assignable to type 'Firestore'.
+  Overload 2 of 3, '(reference: CollectionReference<unknown, DocumentData>, path?: string | undefined, ...pathSegments: string[]): DocumentReference<unknown, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'CollectionReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'CollectionReference<unknown, DocumentData>'.
+  Overload 3 of 3, '(reference: DocumentReference<unknown, DocumentData>, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'DocumentReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'DocumentReference<unknown, DocumentData>'.
+src/contexts/AuthContext.tsx(218,30): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(firestore: Firestore, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'Firestore'.
+      Type 'undefined' is not assignable to type 'Firestore'.
+  Overload 2 of 3, '(reference: CollectionReference<unknown, DocumentData>, path?: string | undefined, ...pathSegments: string[]): DocumentReference<unknown, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'CollectionReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'CollectionReference<unknown, DocumentData>'.
+  Overload 3 of 3, '(reference: DocumentReference<unknown, DocumentData>, path: string, ...pathSegments: string[]): DocumentReference<DocumentData, DocumentData>', gave the following error.
+    Argument of type 'Firestore | undefined' is not assignable to parameter of type 'DocumentReference<unknown, DocumentData>'.
+      Type 'undefined' is not assignable to type 'DocumentReference<unknown, DocumentData>'.

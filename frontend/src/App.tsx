@@ -62,3 +62,7 @@ const App: React.FC = () => {
 };
 
 export default App;
+import FirebaseDebugPanel from './components/debug/FirebaseDebugPanel';
+
+// Add this route
+<Route path="/debug" element={<FirebaseDebugPanel />} />
