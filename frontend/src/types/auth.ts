@@ -56,14 +56,14 @@ export interface LoginFormData {
 }
 
 /**
- * Password reset form data
+ * Password reset form data (for requesting a reset email)
  */
 export interface PasswordResetFormData {
   email: string;
 }
 
 /**
- * ADDED: Reset password form data (missing type)
+ * Reset password form data (for setting a new password)
  */
 export interface ResetPasswordFormData {
   password: string;
