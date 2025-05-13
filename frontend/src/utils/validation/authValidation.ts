@@ -36,9 +36,26 @@ export const validatePasswordStrength = (password: string): string[] => {
 };
 
 /**
- * Validate email format
+ * Validate email format - returns boolean
  */
-export const validateEmail = (email: string): string | null => {
+export const validateEmail = (email: string): boolean => {
+  if (!email) {
+    return false;
+  }
+  return EMAIL_REGEX.test(email);
+};
+
+/**
+ * Validate password - returns boolean
+ */
+export const validatePassword = (password: string): boolean => {
+  return Boolean(password && password.length >= 6);
+};
+
+/**
+ * Validate email format with error message - returns string or null
+ */
+export const validateEmailWithMessage = (email: string): string | null => {
   if (!email) {
     return 'Email is required';
   }
@@ -64,7 +81,7 @@ export const validateRegistrationForm = (data: RegisterFormData): Record<string,
   }
   
   // Email validation
-  const emailError = validateEmail(data.email);
+  const emailError = validateEmailWithMessage(data.email);
   if (emailError) {
     errors.email = emailError;
   }
@@ -72,7 +89,7 @@ export const validateRegistrationForm = (data: RegisterFormData): Record<string,
   // Password validation
   if (!data.password) {
     errors.password = 'Password is required';
-  } else if (data.password.length < 6) {
+  } else if (!validatePassword(data.password)) {
     errors.password = 'Password must be at least 6 characters';
   }
   
@@ -93,7 +110,7 @@ export const validateLoginForm = (data: LoginFormData): Record<string, string> =
   const errors: Record<string, string> = {};
   
   // Email validation
-  const emailError = validateEmail(data.email);
+  const emailError = validateEmailWithMessage(data.email);
   if (emailError) {
     errors.email = emailError;
   }
@@ -113,7 +130,7 @@ export const validatePasswordResetForm = (data: PasswordResetFormData): Record<s
   const errors: Record<string, string> = {};
   
   // Email validation
-  const emailError = validateEmail(data.email);
+  const emailError = validateEmailWithMessage(data.email);
   if (emailError) {
     errors.email = emailError;
   }
@@ -130,7 +147,7 @@ export const validateResetPasswordForm = (data: ResetPasswordFormData): Record<s
   // Password validation
   if (!data.password) {
     errors.password = 'Password is required';
-  } else if (data.password.length < 6) {
+  } else if (!validatePassword(data.password)) {
     errors.password = 'Password must be at least 6 characters';
   }
   

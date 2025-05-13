@@ -9,7 +9,7 @@ interface SpinnerProps {
 /**
  * Loading spinner component with configurable size and color
  */
-const Spinner: React.FC<SpinnerProps> = ({ 
+export const Spinner: React.FC<SpinnerProps> = ({ 
   size = 'md', 
   color = 'text-blue-600',
   className = '' 
