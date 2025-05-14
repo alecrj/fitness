@@ -13,6 +13,9 @@ import Profile from './pages/auth/Profile';
 // Layout components
 import MainLayout from './components/layouts/MainLayout';
 
+// Debug components (back to original name since you overwrote the file)
+import FirebaseDebugPanel from './components/debug/FirebaseDebugPanel';
+
 // Routes
 import RecipeRoutes from './routes/RecipeRoutes';
 import NutritionRoutes from './routes/NutritionRoutes';
@@ -22,6 +25,9 @@ const App: React.FC = () => {
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Debug route (accessible without authentication) */}
+          <Route path="/debug" element={<FirebaseDebugPanel />} />
+          
           {/* Auth routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -62,7 +68,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-import FirebaseDebugPanel from './components/debug/FirebaseDebugPanel';
-
-// Add this route
-<Route path="/debug" element={<FirebaseDebugPanel />} />
