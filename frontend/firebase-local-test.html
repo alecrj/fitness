@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Local Test</title>
+</head>
+<body>
+    <h1>Firebase Local Test</h1>
+    <button onclick="testFirebase()">Click to Test Firebase</button>
+    <div id="result"></div>
+    
+    <!-- Use local scripts instead of CDN -->
+    <script src="./firebase-app.js"></script>
+    <script src="./firebase-auth.js"></script>
+    
+    <script>
+        function testFirebase() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing local Firebase...<br>';
+            
+            result.innerHTML += 'Firebase available: ' + (typeof firebase !== 'undefined') + '<br>';
+            
+            if (typeof firebase !== 'undefined') {
+                const config = {
+                    apiKey: "AIzaSyB_d8xpQLQ4ZWMxsSWYqQi_iypKS7xjA78",
+                    authDomain: "fitness-food-app-9d41d.firebaseapp.com",
+                    projectId: "fitness-food-app-9d41d",
+                    storageBucket: "fitness-food-app-9d41d.firebasestorage.app",
+                    messagingSenderId: "175044367442",
+                    appId: "1:175044367442:web:3b38fe992db32996b5fb8b"
+                };
+                
+                try {
+                    const app = firebase.initializeApp(config);
+                    result.innerHTML += '✅ Firebase initialized<br>';
+                    
+                    firebase.auth().createUserWithEmailAndPassword('test@test.com', 'password123')
+                        .then(() => {
+                            result.innerHTML += '✅ SUCCESS: Firebase auth works!<br>';
+                        })
+                        .catch((error) => {
+                            result.innerHTML += '❌ ERROR: ' + error.code + ' - ' + error.message + '<br>';
+                        });
+                        
+                } catch (error) {
+                    result.innerHTML += '❌ INIT ERROR: ' + error.message + '<br>';
+                }
+            } else {
+                result.innerHTML += '❌ Local Firebase scripts not loaded<br>';
+            }
+        }
+    </script>
+</body>
+</html>

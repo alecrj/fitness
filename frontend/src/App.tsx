@@ -13,7 +13,7 @@ import Profile from './pages/auth/Profile';
 // Layout components
 import MainLayout from './components/layouts/MainLayout';
 
-// Debug components (back to original name since you overwrote the file)
+// Debug components
 import FirebaseDebugPanel from './components/debug/FirebaseDebugPanel';
 
 // Routes

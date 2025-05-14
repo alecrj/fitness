@@ -12,9 +12,9 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { firebaseApp, db, storage } from '../config/firebase';
+import { auth, db, storage } from '../config/firebase';
 import { AuthContextType, AuthUser } from '../types/auth';
-import { UserProfile, PartialUserProfile } from '../types/user';
+import { UserProfile } from '../types/user';
 
 // Create the auth context with a default undefined value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,8 +41,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
-  const auth = getAuth(firebaseApp);
 
   // Register a new user
   async function register(email: string, password: string, name: string): Promise<AuthUser> {

@@ -3,21 +3,26 @@ import { auth } from '../config/firebase';
 
 // Create an axios instance for the API
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
-export const client = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+
+const client = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
 });
 
-// Request interceptor for adding auth token
+// Request interceptor to add auth header with Firebase token
 client.interceptors.request.use(
   async (config) => {
-    const user = auth.currentUser;
-    
-    if (user) {
-      const token = await user.getIdToken();
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      // Get the current user from Firebase
+      const user = auth.currentUser;
+      
+      if (user) {
+        // Get Firebase ID token
+        const token = await user.getIdToken();
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error('Error in request interceptor:', error);
     }
     
     return config;
@@ -27,30 +32,28 @@ client.interceptors.request.use(
   }
 );
 
-// Response interceptor for handling common error cases
+// Response interceptor for handling auth errors
 client.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
     
-    // If error is 401 Unauthorized and we haven't tried refreshing the token yet
+    // If we get a 401 and haven't already tried to refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
       try {
-        // Get a fresh token
         const user = auth.currentUser;
+        
         if (user) {
-          const token = await user.getIdToken(true); // Force token refresh
+          // Force refresh the token
+          const token = await user.getIdToken(true);
           originalRequest.headers.Authorization = `Bearer ${token}`;
           return client(originalRequest);
         }
       } catch (refreshError) {
-        console.error('Error refreshing auth token:', refreshError);
-        // Force logout if we can't refresh the token
-        auth.signOut().catch(console.error);
+        console.error('Error refreshing token:', refreshError);
+        // Redirect to login page here if needed
       }
     }
     
@@ -58,4 +61,6 @@ client.interceptors.response.use(
   }
 );
 
+// Export both named and default exports to support both import styles
+export { client };
 export default client;
